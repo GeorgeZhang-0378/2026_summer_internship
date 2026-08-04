@@ -1,0 +1,23 @@
+Gold Historical Pattern Finder / 黄金历史形态匹配
+Source: /Users/gzhang/Desktop/东方实习/excel任务/SPTAUUSDOZ.IDC.xlsx
+Sheet: file
+Usable observations: 13902
+Reference: 2026-06-23 to 2026-08-03
+Reference length: 30 observations
+Search range: 1920-01-30 to 2026-06-22
+Features: 收盘价(元)
+Forward scenario horizon: 10 observations
+
+Method: price columns use cumulative log-price trajectories; turnover and volume use log(1+x); change uses its supplied values. Each feature is z-normalized within every window. Windows are ranked by normalized RMS distance and reported as a 0–100 similarity score (100 means identical normalized shape).
+方法：价格列使用累计对数价格轨迹；成交额和成交量使用 log(1+x)；涨跌幅使用原始数值。每个窗口内的各项变量均进行 z 标准化。窗口按标准化均方根距离排序，并转换成 0–100 的相似度得分（100 表示标准化形状完全相同）。
+
+Important: analog paths are descriptive scenarios, not probabilities or trading advice. Similar patterns can have different outcomes, and market regimes, inflation, exchange rates, liquidity, and policy structures change over time.
+
+重要：历史类比路径只是描述性情景，不是概率预测或投资建议。相似形态可能产生不同结果，而且市场制度、通胀、汇率、流动性和政策结构会随时间改变。
+
+ 排名       开始日期       结束日期     相似度得分   平均相关系数   区间收盘涨跌幅  随后10期收盘涨跌幅  相关_收盘价(元)
+  1 2018-02-05 2018-03-16 46.798870 0.711723 -0.018734    0.008241   0.711723
+  2 1985-05-01 1985-06-13 45.561185 0.691012  0.004000    0.003984   0.691012
+  3 2022-02-23 2022-04-05 43.660228 0.656601  0.007671    0.013793   0.656601
+  4 1977-03-30 1977-05-12 42.600436 0.635935 -0.015055   -0.023777   0.635935
+  5 2012-03-14 2012-04-24 41.823917 0.620068 -0.001587   -0.022408   0.620068
