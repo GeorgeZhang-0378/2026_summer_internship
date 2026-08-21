@@ -1,0 +1,32 @@
+project:
+  name: gold-multifactor-forecasting
+  forecast_timestamp: end_of_local_trading_day
+
+targets:
+  primary_horizon: 20
+  secondary_horizons: [5, 60]
+  classification_threshold_return: 0.0
+
+walkforward:
+  minimum_train_observations: 756
+  test_block_observations: 63
+  embargo_observations: 5
+  training_window: expanding
+
+decision:
+  bullish_probability: 0.58
+  bearish_probability: 0.42
+
+point_in_time:
+  fred_default_lag_calendar_days: 1
+  cftc_release_lag_calendar_days: 3
+
+markets:
+  london:
+    default_research_start: 1980-01-01
+    base_csv: data/processed/london_base.csv
+    merged_csv: data/processed/london_model.csv
+  shanghai:
+    default_research_start: 2008-01-09
+    base_csv: data/processed/shanghai_base.csv
+    merged_csv: data/processed/shanghai_model.csv
