@@ -1,0 +1,16 @@
+SHANGHAI GOLD FORECAST
+Latest date: 2026-08-12
+Latest close: 958.5400
+
+5D  P(up): 61.83% | BULLISH
+20D P(up): 67.45% | E[log return]: 1.32% | BULLISH
+60D P(up): 88.61% | BULLISH
+
+Historical analogue 20D P(up): 50.00%
+Confidence: MEDIUM
+
+20D OOS AUC: 0.5808716651496229
+20D OOS Balanced Accuracy: 0.5598420863233209
+20D OOS Brier: 0.28629578811505385
+
+The analogue fan chart is a historical distribution, not a deterministic future path.

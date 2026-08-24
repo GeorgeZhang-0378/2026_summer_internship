@@ -1,0 +1,32 @@
+[
+  {
+    "market": "london",
+    "date": "2026-08-03",
+    "p20": 0.6031396854586685,
+    "e20": 0.02109365005619828,
+    "signal": "BULLISH",
+    "analogue20": 0.7,
+    "confidence": "HIGH",
+    "validation20": {
+      "n_oos": 13101,
+      "auc": 0.5476542444901005,
+      "balanced_accuracy": 0.5363135054472322,
+      "brier": 0.2615676774908892
+    }
+  },
+  {
+    "market": "shanghai",
+    "date": "2026-08-12",
+    "p20": 0.6744562917675122,
+    "e20": 0.013224716451913785,
+    "signal": "BULLISH",
+    "analogue20": 0.5,
+    "confidence": "MEDIUM",
+    "validation20": {
+      "n_oos": 3717,
+      "auc": 0.5808716651496229,
+      "balanced_accuracy": 0.5598420863233209,
+      "brier": 0.28629578811505385
+    }
+  }
+]

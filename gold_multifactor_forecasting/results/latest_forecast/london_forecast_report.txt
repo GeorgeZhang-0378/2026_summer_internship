@@ -1,0 +1,16 @@
+LONDON GOLD FORECAST
+Latest date: 2026-08-03
+Latest close: 4057.4400
+
+5D  P(up): 58.34% | BULLISH
+20D P(up): 60.31% | E[log return]: 2.11% | BULLISH
+60D P(up): 62.91% | BULLISH
+
+Historical analogue 20D P(up): 70.00%
+Confidence: HIGH
+
+20D OOS AUC: 0.5476542444901005
+20D OOS Balanced Accuracy: 0.5363135054472322
+20D OOS Brier: 0.2615676774908892
+
+The analogue fan chart is a historical distribution, not a deterministic future path.
