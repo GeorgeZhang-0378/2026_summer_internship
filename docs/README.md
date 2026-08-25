@@ -54,7 +54,9 @@ src/sections/Hero.tsx · History.tsx · Mechanism.tsx · Market.tsx
 cd gold-supercycle
 python3 -m http.server 8765
 # 打开 http://127.0.0.1:8765 （macOS Safari 请用 127.0.0.1 而非 localhost）
+#https://georgezhang-0378.github.io/2026_summer_internship/
 ```
+
 
 ## GitHub Pages 部署
 
