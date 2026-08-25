@@ -70617,6 +70617,7 @@ hX.createRoot(document.getElementById("root")).render(H.jsx(ot.StrictMode, {
     "code-path": "src/main.tsx:8:3",
     children: H.jsx(zW, {
         "code-path": "src/main.tsx:9:5",
+        basename: "/2026_summer_internship",
         children: H.jsx(Wyt, {
             "code-path": "src/main.tsx:10:7"
         })
