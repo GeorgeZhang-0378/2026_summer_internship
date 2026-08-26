@@ -53,7 +53,7 @@ while i < n - 21:
             entry[f"pred_ret{h}"] = None
             continue
         clf = RandomForestClassifier(n_estimators=300, max_depth=6,
-                                     min_samples_leaf=20, random_state=42, n_jobs=-1)
+                                     min_samples_leaf=20, random_state=42, n_jobs=1)
         clf.fit(Xtr, ytr_c)
         p = float(clf.predict_proba(Xte)[0][1])
         tgt = df[f"target_{h}"].get(cutoff)
@@ -61,7 +61,7 @@ while i < n - 21:
         Xtr_r, ytr_r = X.iloc[:-1].dropna(), yr.iloc[:-1].dropna()
         Xtr_r, ytr_r = Xtr_r.align(ytr_r, join="inner", axis=0)
         reg = RandomForestRegressor(n_estimators=300, max_depth=6,
-                                    min_samples_leaf=20, random_state=42, n_jobs=-1)
+                                    min_samples_leaf=20, random_state=42, n_jobs=1)
         reg.fit(Xtr_r, ytr_r)
         pred_ret = float(reg.predict(Xte)[0])
         entry[f"p{h}"] = round(p, 4)

@@ -5,7 +5,7 @@ fetch_factors.py — 拉取黄金预测原型所需的因子时序。
 数据源：
   - 5 个宏观/市场因子：FRED fredgraph.csv（免 API key）
       real_rate = DFII10   10Y TIPS 实际利率
-      spx       = SP500    标普500
+      spx       = NASDAQCOM 美股走势代理（FRED SP500 日线仅自2016，改用纳斯达克综合指数）
       vix       = VIXCLS   VIX 波动率
       dxy       = DTWEXBGS 贸易加权美元指数（广义）
       gvz       = GVZCLS   CBOE 黄金隐含波动率
@@ -26,12 +26,14 @@ import requests
 
 FRED_SERIES = {
     "real_rate": "DFII10",
-    "spx": "SP500",
+    # 注：FRED 的 SP500 日线序列仅自 2016-08 起，会截断样本。改用 NASDAQCOM
+    # （纳斯达克综合指数，2008 起有日线），作为美股市场走势代理，历史更长且高度相关。
+    "spx": "NASDAQCOM",
     "vix": "VIXCLS",
     "dxy": "DTWEXBGS",
     "gvz": "GVZCLS",
 }
-START = "2016-01-01"
+START = "2008-01-01"  # 拉取更早的宏观因子，配合 gold_history.csv(2011-11起) 使特征样本扩展到 ~13 年
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
 
