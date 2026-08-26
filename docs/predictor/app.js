@@ -1,5 +1,5 @@
 // app.js — 读取 signals.json / backtest.json 渲染 ECharts 面板
-const COL = { ink:'#1a1a1a', muted:'#666', gold:'#c19a3f', red:'#c0392b', green:'#1e8f5f', line:'#e6e6e6' };
+const COL = { ink:'#1a1a1a', muted:'#666', gold:'#c19a3f', red:'#c0392b', green:'#1e8f5f', line:'#e6e6e6', blue:'#2563eb' };
 
 async function loadJSON(p){ const r = await fetch(p, {cache:'no-store'}); return r.json(); }
 
@@ -115,23 +115,36 @@ function chartReplay(R, gold, dateStr){
   const dates = slice.map(g=>g[0]);
   const known  = slice.map((g,i)=> i<=offset ? g[1] : null);
   const future = slice.map((g,i)=> i>=offset ? g[1] : null);
+  // 第三根线：模型预测路径（由回归器预测的未来收益率推算的价格轨迹）
+  const startP = slice[offset][1];
+  const r2 = x => Math.round(x*100)/100;
+  const pred = slice.map((g,i)=>{
+    if(i===offset) return startP;
+    if(i===offset+21 && rp.pred_ret21!=null) return r2(startP*(1+rp.pred_ret21/100));
+    if(i===offset+63 && rp.pred_ret63!=null) return r2(startP*(1+rp.pred_ret63/100));
+    return null;
+  });
   const c = echarts.getInstanceByDom(document.getElementById('c_replay')) || echarts.init(document.getElementById('c_replay'));
   c.setOption({
     tooltip:{trigger:'axis'},
-    legend:{data:['已知历史','预测后实际'],top:0},
+    legend:{data:['已知历史','模型预测路径','预测后实际'],top:0},
     grid:{left:55,right:20,top:36,bottom:60},
     xAxis:{type:'category',data:dates,axisLabel:{rotate:45,fontSize:10}},
     yAxis:{type:'value',scale:true,name:'金价'},
     series:[
       {name:'已知历史',type:'line',data:known,showSymbol:false,lineStyle:{color:COL.muted,width:1.5}},
-      {name:'预测后实际',type:'line',data:future,showSymbol:false,lineStyle:{color:COL.gold,width:2},
+      {name:'模型预测路径',type:'line',data:pred,showSymbol:true,symbolSize:7,connectNulls:true,
+        lineStyle:{color:COL.blue,width:2,type:'dashed'},itemStyle:{color:COL.blue},
         markLine:{silent:true,symbol:'none',lineStyle:{color:COL.red,type:'dashed'},
-          data:[{xAxis:rp.date,label:{formatter:'预测日',position:'end',color:COL.red}}]}}
+          data:[{xAxis:rp.date,label:{formatter:'预测日',position:'end',color:COL.red}}]}},
+      {name:'预测后实际',type:'line',data:future,showSymbol:false,lineStyle:{color:COL.gold,width:2}}
     ]
   }, true);
   const fmt = v => v==null ? '未到期' : (v>0?'涨 ':'跌 ') + v.toFixed(2)+'%';
+  const fmtP = v => v==null ? '未预测' : (v>0?'+':'') + v.toFixed(2)+'%';
   info.innerHTML = `截至 <b>${rp.date}</b>：模型预测 P(up) 21日 <b>${(rp.p21*100).toFixed(1)}%</b> / 63日 <b>${(rp.p63*100).toFixed(1)}%</b>。`
-    + ` 实际 — 21日 ${fmt(rp.ret21)}，63日 ${fmt(rp.ret63)}。`;
+    + ` 模型预测收益 — 21日 ${fmtP(rp.pred_ret21)}，63日 ${fmtP(rp.pred_ret63)}；`
+    + ` 实际收益 — 21日 ${fmt(rp.ret21)}，63日 ${fmt(rp.ret63)}。`;
 }
 
 (async ()=>{

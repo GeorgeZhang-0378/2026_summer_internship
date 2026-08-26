@@ -10,7 +10,7 @@ import json
 import os
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
@@ -41,21 +41,32 @@ while i < n - 21:
     feats = feas(len(sub))
     entry = {"date": cutoff.strftime("%Y-%m-%d")}
     for h in (21, 63):
-        y = sub[f"dir_{h}"]
+        yc = sub[f"dir_{h}"]
+        yr = sub[f"target_{h}"]
         X = sub[feats]
-        Xtr, ytr = X.iloc[:-1].dropna(), y.iloc[:-1].dropna()
-        Xtr, ytr = Xtr.align(ytr, join="inner", axis=0)
-        if len(Xtr) < 120:
+        Xtr, ytr_c = X.iloc[:-1].dropna(), yc.iloc[:-1].dropna()
+        Xtr, ytr_c = Xtr.align(ytr_c, join="inner", axis=0)
+        Xte = X.iloc[[-1]].dropna()
+        if len(Xtr) < 120 or Xte.isnull().any().any():
             entry[f"p{h}"] = None
             entry[f"ret{h}"] = None
+            entry[f"pred_ret{h}"] = None
             continue
         clf = RandomForestClassifier(n_estimators=300, max_depth=6,
                                      min_samples_leaf=20, random_state=42, n_jobs=-1)
-        clf.fit(Xtr, ytr)
-        p = float(clf.predict_proba(X.iloc[[-1]].dropna())[0][1])
+        clf.fit(Xtr, ytr_c)
+        p = float(clf.predict_proba(Xte)[0][1])
         tgt = df[f"target_{h}"].get(cutoff)
+        # 回归器预测未来收益率（连续值），用于画出"模型预测路径"第三根线
+        Xtr_r, ytr_r = X.iloc[:-1].dropna(), yr.iloc[:-1].dropna()
+        Xtr_r, ytr_r = Xtr_r.align(ytr_r, join="inner", axis=0)
+        reg = RandomForestRegressor(n_estimators=300, max_depth=6,
+                                    min_samples_leaf=20, random_state=42, n_jobs=-1)
+        reg.fit(Xtr_r, ytr_r)
+        pred_ret = float(reg.predict(Xte)[0])
         entry[f"p{h}"] = round(p, 4)
         entry[f"ret{h}"] = None if pd.isna(tgt) else round(float(tgt) * 100, 2)
+        entry[f"pred_ret{h}"] = round(pred_ret * 100, 2)
     # 此后真实金价路径（最多 63 个交易日）
     fut = df["gold"].loc[cutoff:].iloc[1:64]
     entry["future"] = [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in fut.items()]
