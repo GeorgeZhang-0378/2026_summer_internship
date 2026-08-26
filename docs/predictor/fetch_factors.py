@@ -112,7 +112,10 @@ def build_features(gold: pd.Series, freds: dict) -> pd.DataFrame:
     df["dir_21"] = (df["target_21"] > 0).astype(int)
     df["dir_63"] = (df["target_63"] > 0).astype(int)
 
-    return df.dropna()
+    # 仅丢弃「特征」为 NaN 的引导行；保留尾部无标签行（未来收益未知），
+    # 供 train_rf 对「最新一行」做实时预测，避免 as_of 被标签前视截短到数月前。
+    feat_cols = [c for c in df.columns if not c.startswith(("dir_", "target_"))]
+    return df.dropna(subset=feat_cols)
 
 
 def main():

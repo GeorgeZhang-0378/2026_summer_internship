@@ -1,129 +1,129 @@
 {
-  "as_of": "2026-06-24",
-  "n_samples": 2435,
-  "wgc_21d_accuracy": 0.5018,
-  "rf_21d_accuracy": 0.7826,
+  "as_of": "2026-08-26",
+  "n_samples": 2498,
+  "wgc_21d_accuracy": 0.5045,
+  "rf_21d_accuracy": 0.7789,
   "rf_21d_confusion": [
     [
-      23,
+      24,
       13
     ],
     [
-      7,
-      49
+      8,
+      50
     ]
   ],
-  "rf_63d_accuracy": 0.7667,
+  "rf_63d_accuracy": 0.7742,
   "rf_63d_confusion": [
     [
-      18,
+      20,
       14
     ],
     [
       7,
-      51
+      52
     ]
   ],
   "feature_importance": [
     {
       "name": "real_rate",
-      "imp": 0.1687
+      "imp": 0.1605
     },
     {
       "name": "spx_ret_252",
-      "imp": 0.1145
+      "imp": 0.1164
     },
     {
       "name": "dxy_chg_252",
-      "imp": 0.0845
-    },
-    {
-      "name": "gold_ret_252",
-      "imp": 0.0832
-    },
-    {
-      "name": "gold_vol_60",
-      "imp": 0.0793
-    },
-    {
-      "name": "gold_ret_60",
-      "imp": 0.0727
+      "imp": 0.0936
     },
     {
       "name": "gvz",
-      "imp": 0.0721
+      "imp": 0.0876
+    },
+    {
+      "name": "gold_ret_252",
+      "imp": 0.0864
+    },
+    {
+      "name": "gold_vol_60",
+      "imp": 0.0771
     },
     {
       "name": "spx_ret_60",
-      "imp": 0.0706
+      "imp": 0.0684
+    },
+    {
+      "name": "gold_ret_60",
+      "imp": 0.0629
     },
     {
       "name": "gold_vol_20",
-      "imp": 0.0494
+      "imp": 0.0514
     },
     {
       "name": "real_rate_chg_60",
-      "imp": 0.0485
-    },
-    {
-      "name": "vix",
-      "imp": 0.0386
-    },
-    {
-      "name": "gold_ret_20",
-      "imp": 0.0362
+      "imp": 0.0446
     },
     {
       "name": "spx_ret_20",
-      "imp": 0.0362
+      "imp": 0.0378
+    },
+    {
+      "name": "vix",
+      "imp": 0.0365
+    },
+    {
+      "name": "gold_ret_20",
+      "imp": 0.033
     },
     {
       "name": "dxy_chg_20",
-      "imp": 0.0264
+      "imp": 0.0242
     },
     {
       "name": "vix_chg_20",
-      "imp": 0.019
+      "imp": 0.0197
     }
   ],
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.0058,
-      "score": 2.7,
+      "value": 0.0719,
+      "score": 3.7,
       "direction": "bullish"
     },
     {
       "name": "实际利率",
-      "value": 2.23,
-      "score": 2.9,
+      "value": 2.38,
+      "score": 3.4,
       "direction": "bearish"
     },
     {
       "name": "美元趋势(1年)",
-      "value": 0.0024,
-      "score": 3.5,
+      "value": -0.0174,
+      "score": 5.1,
       "direction": "bearish"
     },
     {
       "name": "波动率/避险",
-      "value": 18.63,
-      "score": 4.9,
+      "value": 15.85,
+      "score": 4.3,
       "direction": "bullish"
     },
     {
       "name": "黄金隐含波动率",
-      "value": 31.6,
-      "score": 5.2,
+      "value": 28.28,
+      "score": 5.0,
       "direction": "bullish"
     },
     {
       "name": "标普(1年)",
-      "value": 0.123,
-      "score": 5.2,
+      "value": 0.1422,
+      "score": 5.0,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.4096,
-  "latest_P_up_63d": 0.4096
+  "latest_P_up_21d": 0.2411,
+  "latest_P_up_63d": 0.2103
 }

@@ -1,7 +1,7 @@
 // app.js — 读取 signals.json / backtest.json 渲染 ECharts 面板
 const COL = { ink:'#1a1a1a', muted:'#666', gold:'#c19a3f', red:'#c0392b', green:'#1e8f5f', line:'#e6e6e6' };
 
-async function loadJSON(p){ const r = await fetch(p); return r.json(); }
+async function loadJSON(p){ const r = await fetch(p, {cache:'no-store'}); return r.json(); }
 
 function cards(sig){
   const el = document.getElementById('cards');

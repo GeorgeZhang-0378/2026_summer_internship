@@ -18,7 +18,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "data")
-SITE_DATA = os.path.join(HERE, "site", "data")
+SITE_DATA = os.path.join(HERE, "data")
 
 FEATURES = [
     "gold_ret_20", "gold_ret_60", "gold_ret_252",
@@ -144,13 +144,13 @@ def main():
     df = df.sort_index()
     print(f"样本 {len(df)}  区间 {df.index[0].date()} ~ {df.index[-1].date()}")
 
-    # 基线 WGC（仅用当前样本里可用的因子）
+    # 基线 WGC（仅用当前样本里可用的因子；忽略尾部无标签行）
     avail = [k for k in WGC_DIR if k in df.columns]
     if avail:
         wgc = wgc_signal(df[avail]).reindex(df.index)
         min_train = min(500, max(120, len(df)//3))
-        wgc_acc21 = accuracy_score(df["dir_21"].reindex(wgc.index[min_train:]),
-                                   wgc.iloc[min_train:])
+        _sub = df["dir_21"].iloc[min_train:].dropna()
+        wgc_acc21 = accuracy_score(_sub, wgc.iloc[min_train:].reindex(_sub.index))
     else:
         wgc_acc21 = float("nan")
     print(f"[基线] WGC 合成指数 21d 方向准确率 = {wgc_acc21:.3f}")
@@ -199,12 +199,24 @@ def main():
     result["feature_importance"] = [{"name": k, "imp": round(float(v), 4)}
                                     for k, v in imp]
 
-    # 当前因子 0-10 评分 + 最新 RF 概率
+    # 当前因子 0-10 评分（用最新一行）
     scores = factor_scores_010(df, df.index[-1])
-    latest_prob21 = float(prob.iloc[-1]) if len(prob) else 0.5
     result["factor_scores"] = scores
-    result["latest_P_up_21d"] = round(latest_prob21, 4)
-    result["latest_P_up_63d"] = round(float(probs_by_h.get(63).iloc[-1]), 4) if 63 in probs_by_h else round(latest_prob21, 4)
+
+    # 最新一行「实时」预测：用全量有标签数据训练，对最新特征行做预测。
+    # walk-forward 的 prob 末尾只有有标签的历史行（~数月前），不能代表今天。
+    feats = feasible_features(df)
+    labeled = df.dropna(subset=feats + ["dir_21", "dir_63"])
+    clf_live = RandomForestClassifier(n_estimators=300, max_depth=6,
+                                     min_samples_leaf=20, random_state=42, n_jobs=-1)
+    clf_live.fit(labeled[feats], labeled["dir_21"])
+    live_p21 = float(clf_live.predict_proba(df[feats].iloc[[-1]])[0][1])
+    clf_live63 = RandomForestClassifier(n_estimators=300, max_depth=6,
+                                       min_samples_leaf=20, random_state=42, n_jobs=-1)
+    clf_live63.fit(labeled[feats], labeled["dir_63"])
+    live_p63 = float(clf_live63.predict_proba(df[feats].iloc[[-1]])[0][1])
+    result["latest_P_up_21d"] = round(live_p21, 4)
+    result["latest_P_up_63d"] = round(live_p63, 4)
 
     # 写 JSON
     os.makedirs(SITE_DATA, exist_ok=True)

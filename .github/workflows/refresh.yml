@@ -1,0 +1,43 @@
+name: Refresh Gold Predictor
+
+on:
+  schedule:
+    # 每天 UTC 00:17 自动刷新（避开整点高峰）
+    - cron: '17 0 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install --quiet pandas numpy scikit-learn requests
+
+      - name: Fetch factors (FRED no-key + Twelvedata if TD_KEY set, else local gold_history.csv)
+        working-directory: docs/predictor
+        env:
+          TD_KEY: ${{ secrets.TD_KEY }}
+        run: python fetch_factors.py
+
+      - name: Train model & regenerate JSON
+        working-directory: docs/predictor
+        run: python train_rf.py
+
+      - name: Commit updated predictions
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/predictor/data/signals.json docs/predictor/data/backtest.json
+          git diff --cached --quiet || git commit -m "daily: refresh gold predictor (as_of $(date -u +%Y-%m-%d))"
+          git push
