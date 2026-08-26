@@ -39,6 +39,24 @@ FEATURE_WINDOW = {
     "gvz": 5,
     "spx_ret_20": 20, "spx_ret_60": 60, "spx_ret_252": 252,
 }
+# 特征中文名（用于前端展示，避免 _ 英文单词）
+FEATURE_CN = {
+    "gold_ret_20": "金价20日收益",
+    "gold_ret_60": "金价60日收益",
+    "gold_ret_252": "金价年化动量(1年)",
+    "gold_vol_20": "金价20日波动率",
+    "gold_vol_60": "金价60日波动率",
+    "real_rate": "实际利率(10Y TIPS)",
+    "real_rate_chg_60": "实际利率60日变化",
+    "dxy_chg_20": "美元20日变化",
+    "dxy_chg_252": "美元1年趋势",
+    "vix": "VIX波动率",
+    "vix_chg_20": "VIX 20日变化",
+    "gvz": "黄金隐含波动率(GVZ)",
+    "spx_ret_20": "标普20日收益",
+    "spx_ret_60": "标普60日收益",
+    "spx_ret_252": "标普1年收益",
+}
 RETRAIN_DAYS = 21
 
 
@@ -129,7 +147,7 @@ def factor_scores_010(df, as_of):
         z = zscore(df[col]).iloc[-1]
         if not np.isfinite(z):
             z = 0.0
-        score = 5 + 2.5 * direction * np.tanh(z / 2.0)
+        score = 5 + 5.0 * direction * np.tanh(z / 2.0)
         score = float(np.clip(score, 0, 10))
         out.append({
             "name": label, "value": round(float(df[col].iloc[-1]), 4),
@@ -187,6 +205,7 @@ def main():
             "strat_curve": [round(float(x), 4) for x in chart["sc"]],
             "bnh_curve": [round(float(x), 4) for x in chart["bc"]],
             "prob": [round(float(x), 4) for x in chart["prob"]],
+            "actual": [int(x) for x in chart["actual"]],
         }
 
     # 特征重要性（用全样本训练一次聚合）
@@ -196,7 +215,7 @@ def main():
     clf.fit(df[feats].dropna(), df["dir_21"].dropna())
     imp = sorted(zip(FEATURES, clf.feature_importances_),
                  key=lambda x: -x[1])
-    result["feature_importance"] = [{"name": k, "imp": round(float(v), 4)}
+    result["feature_importance"] = [{"name": FEATURE_CN.get(k, k), "imp": round(float(v), 4)}
                                     for k, v in imp]
 
     # 当前因子 0-10 评分（用最新一行）

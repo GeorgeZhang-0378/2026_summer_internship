@@ -26,63 +26,63 @@
   ],
   "feature_importance": [
     {
-      "name": "real_rate",
+      "name": "实际利率(10Y TIPS)",
       "imp": 0.1605
     },
     {
-      "name": "spx_ret_252",
+      "name": "标普1年收益",
       "imp": 0.1164
     },
     {
-      "name": "dxy_chg_252",
+      "name": "美元1年趋势",
       "imp": 0.0936
     },
     {
-      "name": "gvz",
+      "name": "黄金隐含波动率(GVZ)",
       "imp": 0.0876
     },
     {
-      "name": "gold_ret_252",
+      "name": "金价年化动量(1年)",
       "imp": 0.0864
     },
     {
-      "name": "gold_vol_60",
+      "name": "金价60日波动率",
       "imp": 0.0771
     },
     {
-      "name": "spx_ret_60",
+      "name": "标普60日收益",
       "imp": 0.0684
     },
     {
-      "name": "gold_ret_60",
+      "name": "金价60日收益",
       "imp": 0.0629
     },
     {
-      "name": "gold_vol_20",
+      "name": "金价20日波动率",
       "imp": 0.0514
     },
     {
-      "name": "real_rate_chg_60",
+      "name": "实际利率60日变化",
       "imp": 0.0446
     },
     {
-      "name": "spx_ret_20",
+      "name": "标普20日收益",
       "imp": 0.0378
     },
     {
-      "name": "vix",
+      "name": "VIX波动率",
       "imp": 0.0365
     },
     {
-      "name": "gold_ret_20",
+      "name": "金价20日收益",
       "imp": 0.033
     },
     {
-      "name": "dxy_chg_20",
+      "name": "美元20日变化",
       "imp": 0.0242
     },
     {
-      "name": "vix_chg_20",
+      "name": "VIX 20日变化",
       "imp": 0.0197
     }
   ],
@@ -90,13 +90,13 @@
     {
       "name": "价格动量(1年)",
       "value": 0.0719,
-      "score": 3.7,
+      "score": 2.5,
       "direction": "bullish"
     },
     {
       "name": "实际利率",
       "value": 2.38,
-      "score": 3.4,
+      "score": 1.8,
       "direction": "bearish"
     },
     {
@@ -108,19 +108,19 @@
     {
       "name": "波动率/避险",
       "value": 15.85,
-      "score": 4.3,
+      "score": 3.7,
       "direction": "bullish"
     },
     {
       "name": "黄金隐含波动率",
       "value": 28.28,
-      "score": 5.0,
+      "score": 4.9,
       "direction": "bullish"
     },
     {
       "name": "标普(1年)",
       "value": 0.1422,
-      "score": 5.0,
+      "score": 5.1,
       "direction": "bearish"
     }
   ],
