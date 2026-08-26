@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>黄金方向预测原型 · Gold Direction Predictor</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    :root{--bg:#fafafa;--card:#fff;--ink:#1a1a1a;--muted:#666;--line:#e6e6e6;--gold:#c19a3f;--red:#c0392b;--green:#1e8f5f;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,"Noto Sans SC",sans-serif;background:var(--bg);color:var(--ink);padding:24px;}
+    h1{font-size:22px;margin:0 0 4px}
+    .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+    .cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px;min-width:150px}
+    .card .k{font-size:12px;color:var(--muted)}
+    .card .v{font-size:24px;font-weight:700;margin-top:4px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+    .panel h3{margin:0 0 8px;font-size:15px}
+    .chart{width:100%;height:320px}
+    .full{grid-column:1/3}
+    @media(max-width:780px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <h1>黄金方向预测原型</h1>
+  <div class="sub" id="sub">加载中…</div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="grid">
+    <div class="panel"><h3>当前因子 0–10 看多评分</h3><div id="c_factors" class="chart"></div></div>
+    <div class="panel"><h3>模型：未来上涨概率 P(up)</h3><div id="c_prob" class="chart"></div></div>
+    <div class="panel full"><h3>回测：策略净值 vs 买入持有（21日信号）</h3><div id="c_backtest" class="chart"></div></div>
+    <div class="panel"><h3>信号概率历史 + 实际方向</h3><div id="c_signal" class="chart"></div></div>
+    <div class="panel"><h3>随机森林特征重要性</h3><div id="c_imp" class="chart"></div></div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
