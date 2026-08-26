@@ -101,18 +101,55 @@ function chartImp(sig){
   });
 }
 
+function chartReplay(R, gold, dateStr){
+  const info = document.getElementById('replay_info');
+  if(!R || !gold){ info.textContent='回放数据缺失'; return; }
+  let rp = null;
+  for(const r of R){ if(r.date <= dateStr) rp = r; else break; }
+  if(!rp){ info.textContent='该日期之前数据不足（最早回放日 2019-07-19）'; return; }
+  const idx = gold.findIndex(g=>g[0]===rp.date);
+  if(idx<0){ info.textContent='未找到对应金价'; return; }
+  const s = Math.max(0, idx-60), e = Math.min(gold.length, idx+64);
+  const slice = gold.slice(s,e);
+  const offset = idx - s;
+  const dates = slice.map(g=>g[0]);
+  const known  = slice.map((g,i)=> i<=offset ? g[1] : null);
+  const future = slice.map((g,i)=> i>=offset ? g[1] : null);
+  const c = echarts.getInstanceByDom(document.getElementById('c_replay')) || echarts.init(document.getElementById('c_replay'));
+  c.setOption({
+    tooltip:{trigger:'axis'},
+    legend:{data:['已知历史','预测后实际'],top:0},
+    grid:{left:55,right:20,top:36,bottom:60},
+    xAxis:{type:'category',data:dates,axisLabel:{rotate:45,fontSize:10}},
+    yAxis:{type:'value',scale:true,name:'金价'},
+    series:[
+      {name:'已知历史',type:'line',data:known,showSymbol:false,lineStyle:{color:COL.muted,width:1.5}},
+      {name:'预测后实际',type:'line',data:future,showSymbol:false,lineStyle:{color:COL.gold,width:2},
+        markLine:{silent:true,symbol:'none',lineStyle:{color:COL.red,type:'dashed'},
+          data:[{xAxis:rp.date,label:{formatter:'预测日',position:'end',color:COL.red}}]}}
+    ]
+  }, true);
+  const fmt = v => v==null ? '未到期' : (v>0?'涨 ':'跌 ') + v.toFixed(2)+'%';
+  info.innerHTML = `截至 <b>${rp.date}</b>：模型预测 P(up) 21日 <b>${(rp.p21*100).toFixed(1)}%</b> / 63日 <b>${(rp.p63*100).toFixed(1)}%</b>。`
+    + ` 实际 — 21日 ${fmt(rp.ret21)}，63日 ${fmt(rp.ret63)}。`;
+}
+
 (async ()=>{
   try{
     const sig = await loadJSON('./data/signals.json');
     const bt = await loadJSON('./data/backtest.json');
+    const rep = await loadJSON('./data/replay.json');
     cards(sig);
     chartFactors(sig);
     chartProb(sig);
     chartBacktest(bt);
     chartSignal(bt);
     chartImp(sig);
+    const replayEl = document.getElementById('replay_date');
+    chartReplay(rep.replay, rep.gold, replayEl.value);
+    replayEl.addEventListener('change', e=>chartReplay(rep.replay, rep.gold, e.target.value));
     window.addEventListener('resize',()=>{
-      ['c_factors','c_prob','c_backtest','c_signal','c_imp']
+      ['c_factors','c_prob','c_backtest','c_signal','c_imp','c_replay']
         .forEach(id=>echarts.getInstanceByDom(document.getElementById(id))?.resize());
     });
   }catch(e){

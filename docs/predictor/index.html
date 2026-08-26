@@ -37,6 +37,15 @@
     <div class="panel"><h3>随机森林特征重要性</h3><div id="c_imp" class="chart"></div></div>
   </div>
 
+  <div class="panel full" style="margin-top:16px">
+    <h3>历史回放：给定日期，只用之前数据预测未来</h3>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <label>选择日期：<input type="date" id="replay_date" min="2019-07-19" max="2026-08-26" value="2026-08-03" style="padding:6px;border:1px solid var(--line);border-radius:6px"></label>
+      <span id="replay_info" style="font-size:13px;color:var(--muted)"></span>
+    </div>
+    <div id="c_replay" class="chart" style="height:360px"></div>
+  </div>
+
   <script src="./app.js?v=2"></script>
 </body>
 </html>
