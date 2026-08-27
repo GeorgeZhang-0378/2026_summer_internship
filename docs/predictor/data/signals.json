@@ -27,63 +27,63 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1537
+      "imp": 0.1532
     },
     {
       "name": "美元1年趋势",
-      "imp": 0.0978
+      "imp": 0.098
     },
     {
       "name": "标普1年收益",
-      "imp": 0.089
+      "imp": 0.0896
     },
     {
       "name": "标普60日收益",
-      "imp": 0.0834
+      "imp": 0.0827
     },
     {
       "name": "金价60日波动率",
-      "imp": 0.0757
+      "imp": 0.0749
     },
     {
       "name": "黄金隐含波动率(GVZ)",
-      "imp": 0.0747
+      "imp": 0.0745
     },
     {
       "name": "金价年化动量(1年)",
-      "imp": 0.073
+      "imp": 0.0731
     },
     {
       "name": "金价60日收益",
-      "imp": 0.062
+      "imp": 0.0622
     },
     {
       "name": "实际利率60日变化",
-      "imp": 0.0576
+      "imp": 0.0584
     },
     {
       "name": "金价20日收益",
-      "imp": 0.0511
+      "imp": 0.0513
     },
     {
       "name": "金价20日波动率",
-      "imp": 0.0488
+      "imp": 0.049
     },
     {
       "name": "标普20日收益",
-      "imp": 0.0433
+      "imp": 0.043
     },
     {
       "name": "VIX波动率",
-      "imp": 0.0379
+      "imp": 0.0385
     },
     {
       "name": "美元20日变化",
-      "imp": 0.0282
+      "imp": 0.0281
     },
     {
       "name": "VIX 20日变化",
-      "imp": 0.0237
+      "imp": 0.0235
     }
   ],
   "factor_scores": [
@@ -95,8 +95,8 @@
     },
     {
       "name": "实际利率",
-      "value": 2.38,
-      "score": 1.8,
+      "value": 2.32,
+      "score": 2.2,
       "direction": "bearish"
     },
     {
@@ -107,23 +107,23 @@
     },
     {
       "name": "波动率/避险",
-      "value": 15.85,
-      "score": 3.7,
+      "value": 15.45,
+      "score": 3.5,
       "direction": "bullish"
     },
     {
       "name": "黄金隐含波动率",
-      "value": 28.28,
-      "score": 4.9,
+      "value": 27.69,
+      "score": 4.8,
       "direction": "bullish"
     },
     {
       "name": "标普(1年)",
-      "value": 0.1524,
+      "value": 0.1514,
       "score": 5.4,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3007,
-  "latest_P_up_63d": 0.216
+  "latest_P_up_21d": 0.2978,
+  "latest_P_up_63d": 0.2125
 }
