@@ -115,9 +115,10 @@ def walk_forward(df, horizon):
             pd.Series(y.reindex(dates).values, index=dates, name="actual"))
 
 
-def backtest(df, signal):
-    """signal: Series 索引对齐 df.index，值为 0/1（做多/空仓）"""
-    fwd = df["target_21"].reindex(signal.index)
+def backtest(df, signal, target_col="target_21"):
+    """signal: Series 索引对齐 df.index，值为 0/1（做多/空仓）。
+    target_col 必须与信号对应的持有期一致（21d 信号→target_21，63d 信号→target_63）。"""
+    fwd = df[target_col].reindex(signal.index)
     pos = signal.shift(1).fillna(0)  # 用 t-1 信号交易 t，避免前视
     strat = pos * fwd
     bnh = fwd.copy()
@@ -187,9 +188,9 @@ def main():
         print(f"        RF {h}d 准确率={acc:.3f}  混淆矩阵={cm}")
         result[f"rf_{h}d_accuracy"] = round(float(acc), 4)
         result[f"rf_{h}d_confusion"] = cm
-        # 回测（用概率>0.5 做多）
+        # 回测（用概率>0.5 做多），持有期与信号一致
         sig = (prob > 0.5).astype(int)
-        sc, bc, strat = backtest(df, sig)
+        sc, bc, strat = backtest(df, sig, f"target_{h}")
         full = pd.DataFrame({"sc": sc, "bc": bc, "prob": prob, "actual": actual,
                              "strat_ret": strat})
         full = full.dropna()
