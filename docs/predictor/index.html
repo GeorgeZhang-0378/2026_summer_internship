@@ -46,6 +46,16 @@
     <div id="c_replay" class="chart" style="height:360px"></div>
   </div>
 
+  <div class="panel full" style="margin-top:16px">
+    <h3>上传金价数据 · 自分析走势（Excel / CSV，纯浏览器本地解析，不上传服务器）</h3>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+      <input type="file" id="xlsx_file" accept=".xlsx,.xls,.csv" style="padding:6px;border:1px solid var(--line);border-radius:6px"/>
+      <span id="xlsx_info" style="font-size:13px;color:var(--muted)">把你的 Gold.xlsx（含日期列 + 价格列）选进来即可，数据只在你浏览器里计算。</span>
+    </div>
+    <div id="c_xlsx" class="chart" style="height:360px"></div>
+  </div>
+
+  <script src="./xlsx.full.min.js"></script>
   <script src="./app.js?v=2"></script>
 </body>
 </html>
