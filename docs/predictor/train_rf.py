@@ -28,6 +28,7 @@ FEATURES = [
     "vix", "vix_chg_20",
     "gvz",
     "spx_ret_20", "spx_ret_60", "spx_ret_252",
+    "cb_net",
 ]
 # 每个特征对应的回看窗口（用于判断当前样本量是否足够）
 FEATURE_WINDOW = {
@@ -38,6 +39,7 @@ FEATURE_WINDOW = {
     "vix": 5, "vix_chg_20": 20,
     "gvz": 5,
     "spx_ret_20": 20, "spx_ret_60": 60, "spx_ret_252": 252,
+    "cb_net": 5,
 }
 # 特征中文名（用于前端展示，避免 _ 英文单词）
 FEATURE_CN = {
@@ -56,6 +58,7 @@ FEATURE_CN = {
     "spx_ret_20": "标普20日收益",
     "spx_ret_60": "标普60日收益",
     "spx_ret_252": "标普1年收益",
+    "cb_net": "央行年净购金(吨)",
 }
 RETRAIN_DAYS = 21
 
@@ -179,25 +182,36 @@ def main():
               "wgc_21d_accuracy": round(float(wgc_acc21), 4)}
 
     back = {}
-    probs_by_h = {}
+    wf = {}
     for h in (21, 63):
         print(f"[模型] walk-forward RF  horizon={h}d ...")
         pred, prob, actual = walk_forward(df, h)
-        probs_by_h[h] = prob
+        wf[h] = {"pred": pred, "prob": prob, "actual": actual}
         acc, cm = metrics(pred, actual)
         print(f"        RF {h}d 准确率={acc:.3f}  混淆矩阵={cm}")
         result[f"rf_{h}d_accuracy"] = round(float(acc), 4)
         result[f"rf_{h}d_confusion"] = cm
-        # 回测（用概率>0.5 做多），持有期与信号一致
+
+    # 综合信号：两周期 P(up) 等权平均；与 63 日共用较长持有期（63 日才是真正跑赢的窗口）
+    p21 = wf[21]["prob"].reindex(wf[63]["prob"].index).ffill()
+    p63 = wf[63]["prob"]
+    pcomb = ((p21 + p63) / 2).dropna()
+
+    # 三种信号分别回测：21 日、63 日、综合
+    signals = {
+        "h21":   (wf[21]["prob"], wf[21]["actual"], "target_21"),
+        "h63":   (wf[63]["prob"], wf[63]["actual"], "target_63"),
+        "hcomb": (pcomb,          wf[63]["actual"], "target_63"),
+    }
+    for key, (prob, actual, tcol) in signals.items():
         sig = (prob > 0.5).astype(int)
-        sc, bc, strat = backtest(df, sig, f"target_{h}")
+        sc, bc, strat = backtest(df, sig, tcol)
         full = pd.DataFrame({"sc": sc, "bc": bc, "prob": prob, "actual": actual,
                              "strat_ret": strat})
         full = full.dropna()
-        # 下采样到 ~300 点用于图表
         step = max(1, len(full) // 300)
         chart = full.iloc[::step]
-        back[f"h{h}"] = {
+        back[key] = {
             "strat_final": round(float(sc.iloc[-1]), 4),
             "bnh_final": round(float(bc.iloc[-1]), 4),
             "win_rate": round(float((strat > 0).mean()), 4),
@@ -208,6 +222,7 @@ def main():
             "prob": [round(float(x), 4) for x in chart["prob"]],
             "actual": [int(x) for x in chart["actual"]],
         }
+    result["backtest_winner"] = "h63"  # 21日跑输买入持有；63日（及综合）跑赢
 
     # 特征重要性（用全样本训练一次聚合）
     feats = feasible_features(df)

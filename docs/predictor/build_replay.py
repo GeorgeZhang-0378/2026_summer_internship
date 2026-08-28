@@ -18,10 +18,11 @@ df = pd.read_csv(os.path.join(DATA, "factors.csv"), parse_dates=["date"]).set_in
 
 FEATURES = ["gold_ret_20", "gold_ret_60", "gold_ret_252", "gold_vol_20", "gold_vol_60",
             "real_rate", "real_rate_chg_60", "dxy_chg_20", "dxy_chg_252", "vix", "vix_chg_20",
-            "gvz", "spx_ret_20", "spx_ret_60", "spx_ret_252"]
+            "gvz", "spx_ret_20", "spx_ret_60", "spx_ret_252", "cb_net"]
 WIN = {"gold_ret_20": 20, "gold_ret_60": 60, "gold_ret_252": 252, "gold_vol_20": 20, "gold_vol_60": 60,
        "real_rate": 5, "real_rate_chg_60": 60, "dxy_chg_20": 20, "dxy_chg_252": 252, "vix": 5,
-       "vix_chg_20": 20, "gvz": 5, "spx_ret_20": 20, "spx_ret_60": 60, "spx_ret_252": 252}
+       "vix_chg_20": 20, "gvz": 5, "spx_ret_20": 20, "spx_ret_60": 60, "spx_ret_252": 252,
+       "cb_net": 5}
 
 
 def feas(nn):

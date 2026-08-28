@@ -20,6 +20,15 @@
     .panel h3{margin:0 0 8px;font-size:15px}
     .chart{width:100%;height:320px}
     .full{grid-column:1/3}
+    .toggle{cursor:pointer;padding:6px 12px;border:1px solid var(--line);background:#fff;border-radius:6px;font-size:13px;color:var(--ink);margin-right:4px}
+    .toggle.active{background:var(--gold);color:#fff;border-color:var(--gold)}
+    .method{font-size:13px;line-height:1.75;color:var(--ink);padding:6px 4px}
+    .method code{background:#f0f0f0;padding:1px 5px;border-radius:4px;font-size:12px}
+    .method h4{margin:16px 0 4px;font-size:14px;color:var(--gold)}
+    .method ul{margin:4px 0;padding-left:20px}
+    .method li{margin:2px 0}
+    details.panel summary{cursor:pointer;list-style:none}
+    details.panel summary::-webkit-details-marker{display:none}
     @media(max-width:780px){.grid{grid-template-columns:1fr}}
   </style>
 </head>
@@ -32,7 +41,16 @@
   <div class="grid">
     <div class="panel"><h3>当前因子 0–10 看多评分</h3><div id="c_factors" class="chart"></div></div>
     <div class="panel"><h3>模型：未来上涨概率 P(up)</h3><div id="c_prob" class="chart"></div></div>
-    <div class="panel full"><h3>回测：策略净值 vs 买入持有（21日信号）</h3><div id="c_backtest" class="chart"></div></div>
+    <div class="panel full">
+      <h3>回测：策略净值 vs 买入持有</h3>
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <button class="toggle" data-bt="h21">21日信号</button>
+        <button class="toggle active" data-bt="h63">63日信号（推荐）</button>
+        <button class="toggle" data-bt="hcomb">综合 21+63</button>
+        <span id="bt_note" style="font-size:13px;color:var(--muted);margin-left:6px"></span>
+      </div>
+      <div id="c_backtest" class="chart"></div>
+    </div>
     <div class="panel"><h3>信号概率历史 + 实际方向</h3><div id="c_signal" class="chart"></div></div>
     <div class="panel"><h3>随机森林特征重要性</h3><div id="c_imp" class="chart"></div></div>
   </div>
@@ -40,7 +58,13 @@
   <div class="panel full" style="margin-top:16px">
     <h3>历史回放：给定日期，只用之前数据预测未来</h3>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-      <label>选择日期：<input type="date" id="replay_date" min="2014-09-29" max="2026-08-26" value="2026-08-03" style="padding:6px;border:1px solid var(--line);border-radius:6px"></label>
+      <label>选择日期：<input type="date" id="replay_date" min="2014-09-29" max="2026-08-28" value="2026-08-03" style="padding:6px;border:1px solid var(--line);border-radius:6px"></label>
+      <label>预测窗口：
+        <select id="replay_horizon" style="padding:6px;border:1px solid var(--line);border-radius:6px">
+          <option value="21">21日</option>
+          <option value="63" selected>63日（推荐）</option>
+        </select>
+      </label>
       <span id="replay_info" style="font-size:13px;color:var(--muted)"></span>
     </div>
     <div id="c_replay" class="chart" style="height:360px"></div>
@@ -55,7 +79,43 @@
     <div id="c_xlsx" class="chart" style="height:360px"></div>
   </div>
 
+  <details class="panel full" style="margin-top:16px">
+    <summary><h3 style="display:inline">📖 这些数字是怎么算出来的？（方法说明，点击展开）</h3></summary>
+    <div class="method">
+      <h4>一、上传面板里那几个指标（自动分析你的金价数据）</h4>
+      <ul>
+        <li><b>动量（momentum）</b>：某周期收益率。<code>252日动量 = 最新价 ÷ 252个交易日前的价格 − 1</code>；20日/60日同理。它衡量"这段时间涨了多少"。</li>
+        <li><b>最大回撤（max drawdown）</b>：历史上"从某阶段最高点，跌到之后最低点"的最大跌幅。公式 <code>max( (价格 − 截至当日最高点) ÷ 最高点 )</code>。它衡量"最坏情况下你会亏多少"。</li>
+        <li><b>年化波动率（annualized vol）</b>：先算每日收益率 <code>(今日价 ÷ 昨日价 − 1)</code>，求其标准差，再 <code>×√252</code>（一年约 252 个交易日）年化。它衡量"抖不抖"。</li>
+        <li><b>状态（regime）—— 为什么叫"反弹"？</b>
+          <ul>
+            <li><b>多头</b>：252日动量 &gt; 0 <b>且</b> 最新价 ≥ 252日均线 → 长期向上，价格在均线之上。</li>
+            <li><b>反弹</b>：252日动量 &gt; 0 <b>但</b> 最新价 &lt; 252日均线 → 长期趋势仍向上，但价格短暂跌破年均线，属于"<b>上涨趋势里的一次回调</b>"，所以是反弹不是反转。</li>
+            <li><b>高位震荡</b>：252日动量 ≤ 0 <b>但</b> 最新价 ≥ 252日均线 → 价格还在均线上，但年度趋势已转弱。</li>
+            <li><b>空头</b>：252日动量 ≤ 0 <b>且</b> 最新价 &lt; 252日均线 → 全面走弱。</li>
+          </ul>
+        </li>
+      </ul>
+
+      <h4>二、模型预测页的数值（来自随机森林）</h4>
+      <ul>
+        <li><b>未来上涨概率 P(up)</b>：随机森林在两个时间窗口（21日 / 63日）上，根据 16 个因子判断"未来是涨还是跌"的概率。概率 &gt; 50% 判为"涨"。</li>
+        <li><b>当前因子 0–10 看多评分</b>：把 5 个核心因子先做 <code>z-score</code>（减均值除标准差，把不同量纲拉到同一尺度），再经 <code>tanh</code> 压到 ±1，映射成 0–10。&gt;5 偏多，&lt;5 偏空。</li>
+        <li><b>回测：策略净值 vs 买入持有</b>：用"前一天的信号"决定当天仓位（概率&gt;0.5 做多，否则空仓；综合信号取 21日+63日 P(up) 的平均）。把每日收益复利累加得"策略净值"，和"一直持有"对比。
+          <br/>结论：<b>21日策略跑输买入持有</b>（高换手踏空复利）；<b>63日策略大幅跑赢</b>；综合信号也跑赢。所以页面默认展示 63日。</li>
+        <li><b>回放里的"模型预测路径"（第 3 条线）</b>：用回归器预测未来 21/63 日的<b>收益率</b>（连续值），反推成价格点，连到预测日。它是一条"点预测"轨迹，短期会偏离真实价格——这正常，模型本职是判断方向，不是精确画价格。</li>
+      </ul>
+
+      <h4>三、回放里"未来涨跌有多少"怎么看</h4>
+      <ul>
+        <li>选定日期后，信息栏会给出：模型预测未来 <b>21/63 日收益率 X%</b>，以及到如今<b>实际收益率 Y%</b>（涨/跌），并标注<b>方向命中 ✅ / 未命中 ❌</b>。</li>
+        <li>"预测收益"来自回归器，"实际收益"是该日后真实金价算出的收益率；两者符号一致即方向命中。</li>
+      </ul>
+      <p style="color:var(--muted);margin-top:10px">数据：FRED 免 key 宏观因子 + 金价历史（Twelvedata）+ 央行年净购金（WGC）。模型：walk-forward 随机森林，严格样本外、无前视。原型，<b>非投资建议</b>。</p>
+    </div>
+  </details>
+
   <script src="./xlsx.full.min.js"></script>
-  <script src="./app.js?v=2"></script>
+  <script src="./app.js?v=3"></script>
 </body>
 </html>

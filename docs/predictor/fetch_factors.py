@@ -80,6 +80,18 @@ def fetch_gold() -> pd.Series:
     )
 
 
+def load_cb() -> dict:
+    """央行年净购金（吨）：WGC Gold Demand Trends 年度净购金。
+    返回 {year: net_tonnes}。使用时取『上一年』值，避免前视（当年总量年底才知）。"""
+    p = os.path.join(DATA, "cb_gold.csv")
+    out = {}
+    if os.path.exists(p):
+        c = pd.read_csv(p)
+        for _, row in c.iterrows():
+            out[int(row["year"])] = float(row["net_tonnes"])
+    return out
+
+
 def build_features(gold: pd.Series, freds: dict) -> pd.DataFrame:
     # 所有序列重采样到金价交易日（业务日），前向填充缺失
     idx = gold.index
@@ -88,6 +100,14 @@ def build_features(gold: pd.Series, freds: dict) -> pd.DataFrame:
         s = s.reindex(idx, method="ffill").reindex(idx, method="bfill")
         frames[name] = s
     df = pd.DataFrame(frames)
+
+    # 央行净购金：取『上一年』年净购金（避免前视），按交易日填充
+    cb = load_cb()
+    if cb:
+        cb_net = [cb.get(d.year - 1, np.nan) for d in idx]
+        df["cb_net"] = pd.Series(cb_net, index=idx).ffill().bfill()
+    else:
+        df["cb_net"] = np.nan
 
     g = df["gold"]
     ret = g.pct_change()

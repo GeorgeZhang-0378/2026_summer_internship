@@ -52,9 +52,11 @@ function chartProb(sig){
   });
 }
 
-function chartBacktest(bt){
-  const h = bt.h21;
+const BT_LABEL = { h21: '21日信号', h63: '63日信号', hcomb: '综合(21+63)' };
+function chartBacktest(bt, which){
+  const h = bt[which];
   const c = echarts.init(document.getElementById('c_backtest'));
+  const win = h.strat_final > h.bnh_final;
   c.setOption({
     tooltip:{trigger:'axis'}, legend:{data:['策略净值','买入持有'],top:0},
     grid:{left:50,right:20,top:36,bottom:40},
@@ -66,7 +68,10 @@ function chartBacktest(bt){
       {name:'买入持有',type:'line',data:h.bnh_curve,showSymbol:false,
         lineStyle:{color:COL.muted,width:1.5}}
     ]
-  });
+  }, true);
+  const note = document.getElementById('bt_note');
+  if (note) note.innerHTML =
+    `<b>${BT_LABEL[which]}</b>：策略 <b>${h.strat_final}</b> vs 买入持有 <b>${h.bnh_final}</b> → ${win ? '跑赢 ✅' : '跑输 ❌'}（样本外 ${h.n} 点）`;
   return h;
 }
 
@@ -101,12 +106,12 @@ function chartImp(sig){
   });
 }
 
-function chartReplay(R, gold, dateStr){
+function chartReplay(R, gold, dateStr, horizon){
   const info = document.getElementById('replay_info');
   if(!R || !gold){ info.textContent='回放数据缺失'; return; }
   let rp = null;
   for(const r of R){ if(r.date <= dateStr) rp = r; else break; }
-  if(!rp){ info.textContent='该日期之前数据不足（最早回放日 2019-07-19）'; return; }
+  if(!rp){ info.textContent='该日期之前数据不足（最早回放日 2014-09-29）'; return; }
   const idx = gold.findIndex(g=>g[0]===rp.date);
   if(idx<0){ info.textContent='未找到对应金价'; return; }
   const s = Math.max(0, idx-60), e = Math.min(gold.length, idx+64);
@@ -115,13 +120,14 @@ function chartReplay(R, gold, dateStr){
   const dates = slice.map(g=>g[0]);
   const known  = slice.map((g,i)=> i<=offset ? g[1] : null);
   const future = slice.map((g,i)=> i>=offset ? g[1] : null);
-  // 第三根线：模型预测路径（由回归器预测的未来收益率推算的价格轨迹）
   const startP = slice[offset][1];
   const r2 = x => Math.round(x*100)/100;
+  // 第三根线：模型预测的"未来 horizon 日"价格点（回归器预测的未来收益率反推）
+  const predRet = horizon===21 ? rp.pred_ret21 : rp.pred_ret63;
+  const offH = horizon===21 ? 21 : 63;
   const pred = slice.map((g,i)=>{
     if(i===offset) return startP;
-    if(i===offset+21 && rp.pred_ret21!=null) return r2(startP*(1+rp.pred_ret21/100));
-    if(i===offset+63 && rp.pred_ret63!=null) return r2(startP*(1+rp.pred_ret63/100));
+    if(i===offset+offH && predRet!=null) return r2(startP*(1+predRet/100));
     return null;
   });
   const c = echarts.getInstanceByDom(document.getElementById('c_replay')) || echarts.init(document.getElementById('c_replay'));
@@ -133,18 +139,26 @@ function chartReplay(R, gold, dateStr){
     yAxis:{type:'value',scale:true,name:'金价'},
     series:[
       {name:'已知历史',type:'line',data:known,showSymbol:false,lineStyle:{color:COL.muted,width:1.5}},
-      {name:'模型预测路径',type:'line',data:pred,showSymbol:true,symbolSize:7,connectNulls:true,
+      {name:'模型预测路径',type:'line',data:pred,showSymbol:true,symbolSize:8,connectNulls:true,
         lineStyle:{color:COL.blue,width:2,type:'dashed'},itemStyle:{color:COL.blue},
+        markPoint:{symbol:'pin',symbolSize:46,data:[{coord:[offset+offH, r2(startP*(1+(predRet||0)/100))],
+          value:(predRet==null?'—':(predRet>0?'+':'')+predRet.toFixed(1)+'%'),itemStyle:{color:COL.blue}}]},
         markLine:{silent:true,symbol:'none',lineStyle:{color:COL.red,type:'dashed'},
           data:[{xAxis:rp.date,label:{formatter:'预测日',position:'end',color:COL.red}}]}},
       {name:'预测后实际',type:'line',data:future,showSymbol:false,lineStyle:{color:COL.gold,width:2}}
     ]
   }, true);
+
+  // “未来涨跌有多少” + 方向命中/未命中
   const fmt = v => v==null ? '未到期' : (v>0?'涨 ':'跌 ') + v.toFixed(2)+'%';
   const fmtP = v => v==null ? '未预测' : (v>0?'+':'') + v.toFixed(2)+'%';
-  info.innerHTML = `截至 <b>${rp.date}</b>：模型预测 P(up) 21日 <b>${(rp.p21*100).toFixed(1)}%</b> / 63日 <b>${(rp.p63*100).toFixed(1)}%</b>。`
-    + ` 模型预测收益 — 21日 ${fmtP(rp.pred_ret21)}，63日 ${fmtP(rp.pred_ret63)}；`
-    + ` 实际收益 — 21日 ${fmt(rp.ret21)}，63日 ${fmt(rp.ret63)}。`;
+  const pUp = horizon===21 ? rp.p21 : rp.p63;
+  const act = horizon===21 ? rp.ret21 : rp.ret63;
+  let verdict;
+  if (act==null || predRet==null) verdict = '（尚未到期，无法判对错）';
+  else verdict = (Math.sign(act) === Math.sign(predRet)) ? '方向命中 ✅' : '方向未命中 ❌';
+  info.innerHTML = `截至 <b>${rp.date}</b>（预测窗口 <b>${horizon}日</b>）：模型 P(up)=<b>${(pUp*100).toFixed(1)}%</b>。`
+    + ` 模型预测未来收益 <b>${fmtP(predRet)}</b>，实际 <b>${fmt(act)}</b>。 ${verdict}`;
 }
 
 // ---------- 上传 Excel/CSV 自分析走势（纯浏览器） ----------
@@ -258,12 +272,23 @@ function setupXlsxUpload(){
     cards(sig);
     chartFactors(sig);
     chartProb(sig);
-    chartBacktest(bt);
+    // 回测：默认展示 63 日（真正跑赢买入持有的窗口），可由按钮切换
+    chartBacktest(bt, 'h63');
+    document.querySelectorAll('.toggle[data-bt]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.toggle[data-bt]').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        chartBacktest(bt, btn.dataset.bt);
+      });
+    });
     chartSignal(bt);
     chartImp(sig);
     const replayEl = document.getElementById('replay_date');
-    chartReplay(rep.replay, rep.gold, replayEl.value);
-    replayEl.addEventListener('change', e=>chartReplay(rep.replay, rep.gold, e.target.value));
+    const horizonEl = document.getElementById('replay_horizon');
+    const drawReplay = ()=> chartReplay(rep.replay, rep.gold, replayEl.value, parseInt(horizonEl.value,10));
+    drawReplay();
+    replayEl.addEventListener('change', drawReplay);
+    horizonEl.addEventListener('change', drawReplay);
     setupXlsxUpload();
     window.addEventListener('resize',()=>{
       ['c_factors','c_prob','c_backtest','c_signal','c_imp','c_replay','c_xlsx']
