@@ -41,8 +41,10 @@ jobs:
         run: python build_replay.py
 
       # ---------- 沪金（docs/shgold） ----------
-      - name: "[SH Gold] Fetch SHFE AU0 + macro factors"
+      - name: "[SH Gold] Fetch SHFE AU0 + macro factors (keyless; TD_KEY optional upgrade for intl gold fallback)"
         working-directory: docs/shgold
+        env:
+          TD_KEY: ${{ secrets.TD_KEY }}
         run: python fetch_shgold.py
 
       - name: "[SH Gold] Train model & regenerate JSON"
