@@ -144,42 +144,50 @@ function chartReplay(R, gold, dateStr, horizon){
   if(!rp){ info.textContent='该日期之前数据不足（最早回放日 2014-09-29）'; return; }
   const idx = gold.findIndex(g=>g[0]===rp.date);
   if(idx<0){ info.textContent='未找到对应金价'; return; }
-  const s = Math.max(0, idx-60), e = Math.min(gold.length, idx+64);
-  const slice = gold.slice(s,e);
-  const offset = idx - s;
-  const dates = slice.map(g=>g[0]);
-  const known  = slice.map((g,i)=> i<=offset ? g[1] : null);
-  const future = slice.map((g,i)=> i>=offset ? g[1] : null);
-  const startP = slice[offset][1];
-  const r2 = x => Math.round(x*100)/100;
-  // 第三根线：模型预测的"未来 horizon 日"价格点（回归器预测的未来收益率反推）
-  const predRet = horizon===21 ? rp.pred_ret21 : rp.pred_ret63;
+  const startP = gold[idx][1];
   const offH = horizon===21 ? 21 : 63;
-  const pred = slice.map((g,i)=>{
-    if(i===offset) return startP;
-    if(i===offset+offH && predRet!=null) return r2(startP*(1+predRet/100));
-    return null;
-  });
+  const predRet = horizon===21 ? rp.pred_ret21 : rp.pred_ret63;
+  const r2 = x => Math.round(x*100)/100;
+  const addDays = (ds,n)=>{ const d=new Date(ds+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+  // 用日历轴，从“预测日前 60 天”一直画到“预测日 + 窗口”，这样预测路径即使落到真实数据之外也能显示
+  const startCal = addDays(rp.date, -60);
+  const endCal   = addDays(rp.date, offH);
+  const goldMap = new Map(gold.map(g=>[g[0], g[1]]));
+  const futMap  = new Map((rp.future||[]).map(g=>[g[0], g[1]]));
+  const dates=[], actual=[], pred=[];
+  let cur = new Date(startCal+'T00:00:00Z'), end = new Date(endCal+'T00:00:00Z'), guard=0;
+  while(cur <= end && guard++ < 600){
+    const ds = cur.toISOString().slice(0,10);
+    dates.push(ds);
+    // 实际价格：预测日及之前取历史，之后取真实未来；无缝拼成一条“真值”线
+    const a = ds <= rp.date ? (goldMap.get(ds) ?? null) : (futMap.get(ds) ?? null);
+    actual.push(a);
+    if(ds === rp.date) pred.push(startP);
+    else if(ds === endCal && predRet!=null) pred.push(r2(startP*(1+predRet/100)));
+    else pred.push(null);
+    cur.setUTCDate(cur.getUTCDate()+1);
+  }
   const c = echarts.getInstanceByDom(document.getElementById('c_replay')) || echarts.init(document.getElementById('c_replay'));
   c.setOption({
     tooltip:{trigger:'axis'},
-    legend:{data:['已知历史','模型预测路径','预测后实际'],top:0},
+    legend:{data:['实际价格','模型预测路径'],top:0},
     grid:{left:55,right:20,top:36,bottom:60},
     xAxis:{type:'category',data:dates,axisLabel:{rotate:45,fontSize:10}},
     yAxis:{type:'value',scale:true,name:'金价'},
     series:[
-      {name:'已知历史',type:'line',data:known,showSymbol:false,lineStyle:{color:COL.muted,width:1.5}},
-      {name:'模型预测路径',type:'line',data:pred,showSymbol:true,symbolSize:8,connectNulls:true,
+      {name:'实际价格',type:'line',data:actual,showSymbol:false,connectNulls:true,
+        lineStyle:{color:COL.gold,width:2}},
+      {name:'模型预测路径',type:'line',data:pred,showSymbol:true,symbolSize:9,connectNulls:true,
         lineStyle:{color:COL.blue,width:2,type:'dashed'},itemStyle:{color:COL.blue},
-        markPoint:{symbol:'pin',symbolSize:46,data:[{coord:[offset+offH, r2(startP*(1+(predRet||0)/100))],
-          value:(predRet==null?'—':(predRet>0?'+':'')+predRet.toFixed(1)+'%'),itemStyle:{color:COL.blue}}]},
+        markPoint:{symbol:'pin',symbolSize:52,
+          data: predRet!=null ? [{coord:[dates.length-1, r2(startP*(1+predRet/100))],
+            value:(predRet>0?'+':'')+predRet.toFixed(1)+'%',itemStyle:{color:COL.blue}}] : []},
         markLine:{silent:true,symbol:'none',lineStyle:{color:COL.red,type:'dashed'},
-          data:[{xAxis:rp.date,label:{formatter:'预测日',position:'end',color:COL.red}}]}},
-      {name:'预测后实际',type:'line',data:future,showSymbol:false,lineStyle:{color:COL.gold,width:2}}
+          data:[{xAxis:rp.date,label:{formatter:'预测日',position:'end',color:COL.red}}]}}
     ]
   }, true);
 
-  // “未来涨跌有多少” + 方向命中/未命中
+  // 信息栏：未来涨跌多少 + 方向命中/未命中
   const fmt = v => v==null ? '未到期' : (v>0?'涨 ':'跌 ') + v.toFixed(2)+'%';
   const fmtP = v => v==null ? '未预测' : (v>0?'+':'') + v.toFixed(2)+'%';
   const pUp = horizon===21 ? rp.p21 : rp.p63;
@@ -187,8 +195,11 @@ function chartReplay(R, gold, dateStr, horizon){
   let verdict;
   if (act==null || predRet==null) verdict = '（尚未到期，无法判对错）';
   else verdict = (Math.sign(act) === Math.sign(predRet)) ? '方向命中 ✅' : '方向未命中 ❌';
+  const dataEnd = gold[gold.length-1][0];
+  const trunc = endCal > dataEnd;
   info.innerHTML = `截至 <b>${rp.date}</b>（预测窗口 <b>${horizon}日</b>）：模型 P(up)=<b>${(pUp*100).toFixed(1)}%</b>。`
-    + ` 模型预测未来收益 <b>${fmtP(predRet)}</b>，实际 <b>${fmt(act)}</b>。 ${verdict}`;
+    + ` 模型预测未来收益 <b>${fmtP(predRet)}</b>，实际 <b>${fmt(act)}</b>。 ${verdict}`
+    + (trunc ? `<br/><span style="color:var(--muted)">（真实金价截至 ${dataEnd}，其后只有模型预测路径、无实际值可对照）</span>` : '');
 }
 
 // ---------- 上传 Excel/CSV 自分析走势（纯浏览器） ----------
