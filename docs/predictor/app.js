@@ -312,8 +312,8 @@ function setupXlsxUpload(){
 // 与上方"自分析走势"相互独立：这里会把你上传的序列当训练集，训练一个
 // 预测未来 21/63 日涨跌方向与幅度的模型（不含宏观因子，纯技术面自训练）。
 
-// 解析 Excel/CSV -> {dates, prices}（复用 parseDate 与列自动识别）
-function parseXlsxToSeries(buf){
+// 读取第一个（行数最多的）工作表的所有行（含表头/数据），供解析与列选择复用
+function readSheet(buf){
   if (typeof XLSX === 'undefined') throw new Error('XLSX 解析库未加载');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
   let sheet = wb.Sheets[wb.SheetNames[0]], best = -1;
@@ -323,15 +323,21 @@ function parseXlsxToSeries(buf){
     const er = XLSX.utils.decode_range(ref).e.r;
     if (er > best) { best = er; sheet = wb.Sheets[nm]; }
   }
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-  if (rows.length < 3) throw new Error('数据行太少');
-  const header = rows[0].map((h, i) => ({ h: String(h == null ? '' : h).trim().toLowerCase(), i }));
-  const dateIdx = header.find(c => /date|日期|时间|time/.test(c.h))?.i ?? -1;
-  let priceIdx = header.find(c => /close|price|gold|收盘|价格|adj|value|数值/.test(c.h))?.i ?? -1;
-  if (priceIdx < 0) for (let c = 0; c < rows[1].length; c++) { if (c === dateIdx) continue; if (typeof rows[1][c] === 'number') { priceIdx = c; break; } }
-  if (priceIdx < 0) throw new Error('未找到价格列（需含数值的列）');
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+}
+
+// 解析 Excel/CSV -> {dates, prices}
+//   dateIdx / priceIdx：列下标（用户在下拉框选择；可传 -1 表示无日期列）
+//   若文件首行全为数值（无表头），则自动按列序号处理，从首行开始当作数据
+function parseXlsxToSeries(buf, dateIdx, priceIdx){
+  const rows = readSheet(buf);
+  if (rows.length < 3) throw new Error('数据行太少（需 ≥3 行）');
+  const headerIsText = rows[0].some(h => h != null && isNaN(Number(h)) && String(h).trim() !== '');
+  const headerRow = headerIsText ? rows[0] : null;
+  const startRow = headerIsText ? 1 : 0;
+  if (priceIdx == null || priceIdx < 0) throw new Error('请先在下拉框选择“数值列”（价格/收盘价）');
   const data = [];
-  for (let r = 1; r < rows.length; r++) {
+  for (let r = startRow; r < rows.length; r++) {
     const rv = rows[r];
     const d = dateIdx >= 0 ? parseDate(rv[dateIdx]) : null;
     const p = Number(rv[priceIdx]);
@@ -342,6 +348,30 @@ function parseXlsxToSeries(buf){
   if (data.length < 60) throw new Error('有效数值不足（需 ≥60 行）');
   if (data[0].t) data.sort((a, b) => a.t - b.t);
   return { dates: data.map(d => d.t ? d.t.toISOString().slice(0, 10) : ''), prices: data.map(d => d.p) };
+}
+
+// 读取首行作为列候选，填充“日期列 / 数值列”下拉框，并自动推断默认值
+function populatePredictColumns(buf, dateSel, valSel){
+  const rows = readSheet(buf);
+  if (rows.length < 2) throw new Error('文件为空或无数据');
+  const headerIsText = rows[0].some(h => h != null && isNaN(Number(h)) && String(h).trim() !== '');
+  const cols = rows[0].map((h, i) => ({
+    idx: i,
+    name: (!headerIsText || h == null || String(h).trim() === '') ? `第 ${i + 1} 列` : String(h).trim()
+  }));
+  const opts = cols.map(c => `<option value="${c.idx}">${c.name}</option>`).join('');
+  dateSel.innerHTML = `<option value="-1">无（按行顺序）</option>` + opts;
+  valSel.innerHTML = opts;
+  // 自动推断默认：日期列匹配 date/日期/时间，数值列匹配 close/price/gold/收盘/价格…
+  const di = cols.findIndex(c => /date|日期|时间|time/i.test(c.name));
+  let pi = cols.findIndex(c => /close|price|gold|收盘|价格|adj|value|数值/i.test(c.name));
+  if (pi < 0) { // 退而求其次：第一个数值列（排除日期列）
+    const r1 = headerIsText ? rows[1] : rows[0];
+    pi = cols.findIndex((c, i) => i !== di && r1 && typeof r1[c.idx] === 'number');
+  }
+  if (di >= 0) dateSel.value = String(di);
+  if (pi >= 0) valSel.value = String(pi);
+  return cols.length;
 }
 
 // ---- 随机森林（分类 + 回归，从零实现） ----
@@ -433,47 +463,65 @@ function selfTrain(prices){
   };
 }
 
+let _predictBuf = null;  // 已选文件的二进制 buffer（列选择 / 预测共用）
 function setupSelfPredict(){
-  const el = document.getElementById('predict_file');
+  const fileEl = document.getElementById('predict_file');
   const btn = document.getElementById('predict_btn');
-  if (!el || !btn) return;
-  btn.addEventListener('click', () => {
-    const f = el.files && el.files[0];
-    if (!f) { document.getElementById('predict_info').textContent = '请先选择文件'; return; }
-    btn.disabled = true;
-    const info = document.getElementById('predict_info');
+  const dateSel = document.getElementById('predict_date');
+  const valSel = document.getElementById('predict_value');
+  const info = document.getElementById('predict_info');
+  if (!fileEl || !btn || !dateSel || !valSel) return;
+
+  // 选文件后立即读取列名，填充下拉框让用户确认/修改列映射
+  fileEl.addEventListener('change', () => {
+    const f = fileEl.files && fileEl.files[0];
+    if (!f) { _predictBuf = null; dateSel.disabled = true; valSel.disabled = true; btn.disabled = true; return; }
     const reader = new FileReader();
     reader.onload = ev => {
-      const buf = ev.target.result;
-      info.textContent = '解析 + 特征工程…';
-      setTimeout(() => {
-        ensureXLSX(() => {
-          try {
-            const series = parseXlsxToSeries(buf);
-            info.textContent = `已解析 ${series.prices.length} 行。训练随机森林（用自己的数据，可能卡顿几秒）…`;
-            setTimeout(() => {
-              try {
-                const model = selfTrain(series.prices);
-                const latest = series.prices[series.prices.length - 1];
-                const pUp21 = model.fDir21.predict(model.lastX);
-                const pUp63 = model.fDir63.predict(model.lastX);
-                const ret21 = model.fRet21.predict(model.lastX);
-                const ret63 = model.fRet63.predict(model.lastX);
-                const t21 = latest * (1 + ret21 / 100), t63 = latest * (1 + ret63 / 100);
-                renderSelfPredict(series, latest, { pUp21, pUp63, ret21, ret63, t21, t63 }, model, info);
-              } catch (err) { info.textContent = '预测失败：' + err.message; }
-              finally { btn.disabled = false; }
-            }, 40);
-          } catch (err) { info.textContent = '解析失败：' + err.message; btn.disabled = false; }
-        });
-      }, 40);
+      _predictBuf = ev.target.result;
+      ensureXLSX(() => {
+        try {
+          const n = populatePredictColumns(_predictBuf, dateSel, valSel);
+          dateSel.disabled = false; valSel.disabled = false; btn.disabled = false;
+          info.innerHTML = `已识别 <b>${n}</b> 列。请确认下方“日期列 / 数值列”是否选对（不同文件格式不同，可下拉修改），再点“训练并预测”。`;
+        } catch (e) { info.textContent = '读取文件失败：' + e.message; }
+      });
     };
-    reader.onerror = () => { info.textContent = '读取文件失败'; btn.disabled = false; };
+    reader.onerror = () => { info.textContent = '读取文件失败'; };
     reader.readAsArrayBuffer(f);
+  });
+
+  btn.addEventListener('click', () => {
+    if (!_predictBuf) { info.textContent = '请先选择文件'; return; }
+    btn.disabled = true;
+    info.textContent = '解析 + 特征工程…';
+    setTimeout(() => {
+      ensureXLSX(() => {
+        try {
+          const di = parseInt(dateSel.value, 10), pi = parseInt(valSel.value, 10);
+          const series = parseXlsxToSeries(_predictBuf, di, pi);
+          info.textContent = `已解析 ${series.prices.length} 行。训练随机森林（用自己的数据，可能卡顿几秒）…`;
+          setTimeout(() => {
+            try {
+              const model = selfTrain(series.prices);
+              const latest = series.prices[series.prices.length - 1];
+              const pUp21 = model.fDir21.predict(model.lastX);
+              const pUp63 = model.fDir63.predict(model.lastX);
+              const ret21 = model.fRet21.predict(model.lastX);
+              const ret63 = model.fRet63.predict(model.lastX);
+              const t21 = latest * (1 + ret21 / 100), t63 = latest * (1 + ret63 / 100);
+              renderSelfPredict(series, latest, { pUp21, pUp63, ret21, ret63, t21, t63 }, model, info);
+            } catch (err) { info.textContent = '预测失败：' + err.message; }
+            finally { btn.disabled = false; }
+          }, 40);
+        } catch (err) { info.textContent = '解析失败：' + err.message; btn.disabled = false; }
+      });
+    }, 40);
   });
 }
 
 function renderSelfPredict(series, latest, pred, model, info){
+  const chartEl = document.getElementById('c_predict');
   const fmtP = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
   const dir = p => p >= 0.5 ? '涨' : '跌';
   info.innerHTML =

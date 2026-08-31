@@ -132,13 +132,19 @@
     <p class="sub" style="margin:0 0 8px">把你的 Excel/CSV（含日期列 + 价格列）选进来，点“训练并预测”。模型会在你浏览器里用这段历史训练一个随机森林，预测未来 21 日 / 63 日的<b>涨跌方向</b>与<b>幅度</b>。与上方“自分析走势”互不影响，也与宏观因子模型是两个独立模型。</p>
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
       <input type="file" id="predict_file" accept=".xlsx,.xls,.csv" style="padding:6px;border:1px solid var(--line);border-radius:6px"/>
-      <button id="predict_btn" class="toggle" style="background:var(--gold);color:#fff;border-color:var(--gold)">训练并预测</button>
-      <span id="predict_info" style="font-size:13px;color:var(--muted)">选择文件后点击按钮；训练在本地进行，数据量越大越慢（属正常）。</span>
+      <label style="font-size:13px">日期列：
+        <select id="predict_date" disabled style="padding:5px;border:1px solid var(--line);border-radius:6px"></select>
+      </label>
+      <label style="font-size:13px">数值列（价格/收盘价）：
+        <select id="predict_value" disabled style="padding:5px;border:1px solid var(--line);border-radius:6px"></select>
+      </label>
+      <button id="predict_btn" class="toggle" style="background:var(--gold);color:#fff;border-color:var(--gold)" disabled>训练并预测</button>
+      <span id="predict_info" style="font-size:13px;color:var(--muted)">先选择文件；不同文件列名不同，选好后可在下拉框确认“日期列 / 数值列”。</span>
     </div>
     <div id="c_predict" class="chart" style="height:340px"></div>
   </div>
 
   <script src="./xlsx.full.min.js"></script>
-  <script src="./app.js?v=5"></script>
+  <script src="./app.js?v=6"></script>
 </body>
 </html>
