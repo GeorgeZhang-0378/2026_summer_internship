@@ -347,7 +347,8 @@ function parseXlsxToSeries(buf, dateIdx, priceIdx){
   }
   if (data.length < 60) throw new Error('有效数值不足（需 ≥60 行）');
   if (data[0].t) data.sort((a, b) => a.t - b.t);
-  return { dates: data.map(d => d.t ? d.t.toISOString().slice(0, 10) : ''), prices: data.map(d => d.p) };
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return { dates: data.map(d => d.t ? ymd(d.t) : ''), prices: data.map(d => d.p) };
 }
 
 // 读取首行作为列候选，填充“日期列 / 数值列”下拉框，并自动推断默认值
@@ -426,24 +427,72 @@ function _featAt(prices, MA20, MA60, MA252, dr, i){
 }
 function _MArr(prices, w){ const n = prices.length, out = new Array(n).fill(null); let s = 0; for (let i = 0; i < n; i++){ s += prices[i]; if (i >= w) s -= prices[i - w]; if (i >= w - 1) out[i] = s / w; } return out; }
 
+// ---------- 宏观因子（预打包随站点发布；训练时按日期本地 JOIN） ----------
+// 与主模型同源：实际利率(DFII10) / 美股(NASDAQ) / VIX / 美元 / 黄金波动率(GVZ) / 央行净购金(WGC)。
+// 打包在同一站点下（同域 fetch，无 CORS、不上传用户数据），仅在训练时按日期切片匹配。
+const MACRO_KEYS = ['real_rate', 'spx_ret_252', 'vix', 'dxy_chg_252', 'gvz', 'cb_net'];
+let _macroMap = null, _macroLast = null, _macroStart = null, _macroEnd = null, _macroLoaded = false;
+function loadMacroHistory(){
+  if (_macroLoaded) return Promise.resolve(_macroMap);
+  _macroLoaded = true;
+  return fetch('./data/macro_history.json')
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('macro http ' + r.status)))
+    .then(arr => { _macroMap = new Map(); for (const rec of arr){ _macroMap.set(rec.date, rec); _macroLast = rec; } _macroStart = arr[0].date; _macroEnd = arr[arr.length - 1].date; return _macroMap; })
+    .catch(() => { _macroMap = new Map(); return _macroMap; }); // 加载失败 → 降级为纯技术面
+}
+function macroFor(dateStr){
+  if (!dateStr || !_macroMap) return null;
+  if (_macroMap.has(dateStr)) return _macroMap.get(dateStr);
+  // 早于历史起点：无同期宏观，返回 null（不可用最新值污染训练）
+  if (_macroStart && dateStr < _macroStart) return null;
+  // 晚于历史终点（未来日期）：前向填充到最后已知值（合理假设）
+  if (_macroEnd && dateStr > _macroEnd) return _macroLast;
+  // 区间内 ±3 天容错（应对时区导致的 1 天偏差）
+  try {
+    const dt = new Date(dateStr);
+    if (isNaN(dt)) return null;
+    for (let d = 1; d <= 3; d++){
+      const a = new Date(dt); a.setDate(a.getDate() + d);
+      const ka = a.toISOString().slice(0, 10);
+      if (_macroMap.has(ka)) return _macroMap.get(ka);
+      const b = new Date(dt); b.setDate(b.getDate() - d);
+      const kb = b.toISOString().slice(0, 10);
+      if (_macroMap.has(kb)) return _macroMap.get(kb);
+    }
+  } catch (e) {}
+  return null;
+}
+function _macroVec(m){
+  if (!m) return null;
+  const v = MACRO_KEYS.map(k => m[k]);
+  return v.every(x => x != null && isFinite(x)) ? v : null;
+}
+
 // 训练：返回模型 + 样本外测试精度
-function selfTrain(prices){
+//   prices / dates：用户序列（并行数组）；macroFor：dateStr -> 宏观记录（可为 null）
+//   若宏数据可匹配（≥100 点），特征 = 9 技术 + 6 宏观；否则降级为纯 9 技术特征。
+function selfTrain(prices, dates, macroFor){
   const n = prices.length;
   const MA20 = _MArr(prices, 20), MA60 = _MArr(prices, 60), MA252 = _MArr(prices, 252);
   const dr = [0]; for (let i = 1; i < n; i++) dr.push(prices[i] / prices[i - 1] - 1);
-  const rows = [];
+  const combined = [], tech = [];
   for (let i = 252; i + 63 < n; i++){
     const x = _featAt(prices, MA20, MA60, MA252, dr, i);
     if (!x) continue;
     const r21 = prices[i + 21] / prices[i] - 1, r63 = prices[i + 63] / prices[i] - 1;
-    rows.push({ x, dir21: r21 > 0 ? 1 : 0, ret21: r21 * 100, dir63: r63 > 0 ? 1 : 0, ret63: r63 * 100 });
+    const base = { dir21: r21 > 0 ? 1 : 0, ret21: r21 * 100, dir63: r63 > 0 ? 1 : 0, ret63: r63 * 100 };
+    tech.push({ x, ...base });
+    const mv = macroFor ? _macroVec(macroFor(dates ? dates[i] : null)) : null;
+    if (mv) combined.push({ x: x.concat(mv), ...base });
   }
+  const useMacro = combined.length >= 100;
+  const rows = useMacro ? combined : tech;
   if (rows.length < 100) throw new Error('样本不足（需 ≥100 个可训练点，约 1 年以上日线）');
   const m = rows.length, cut = Math.floor(m * 0.8);
   let trainIdx = []; for (let k = 0; k < cut; k++) trainIdx.push(k);
   if (trainIdx.length > 4000){ const sel = []; const pool = trainIdx.slice(); while (sel.length < 4000 && pool.length){ sel.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]); } trainIdx = sel; }
   const X = trainIdx.map(k => rows[k].x);
-  const cfg = { nTrees: 120, maxDepth: 7, minLeaf: 30, mtry: 3, regression: false };
+  const cfg = { nTrees: 120, maxDepth: 7, minLeaf: 30, mtry: Math.max(2, Math.round(Math.sqrt(X[0].length))), regression: false };
   const cfgR = { ...cfg, regression: true };
   const fDir21 = buildForest(X, trainIdx.map(k => rows[k].dir21), cfg);
   const fDir63 = buildForest(X, trainIdx.map(k => rows[k].dir63), cfg);
@@ -454,9 +503,11 @@ function selfTrain(prices){
   const accRet = f => { let ok = 0, mae = 0; for (const k of test){ const p = f.predict(rows[k].x); mae += Math.abs(p - rows[k].ret21); if ((p >= 0 ? 1 : 0) === (rows[k].ret21 >= 0 ? 1 : 0)) ok++; } return { acc: ok / test.length, mae: mae / test.length }; };
   const finalX = _featAt(prices, MA20, MA60, MA252, dr, n - 1);
   if (!finalX) throw new Error('最新点回看不足（序列尾部数据异常）');
+  let lastX = finalX;
+  if (useMacro){ const mv = macroFor ? _macroVec(macroFor(dates ? dates[n - 1] : null)) : null; if (mv) lastX = finalX.concat(mv); }
   return {
     fDir21, fDir63, fRet21, fRet63,
-    lastX: finalX,
+    lastX, usedMacro: useMacro, nMacro: combined.length,
     testN: test.length,
     rDir21: accDir(fDir21), rDir63: accDir(fDir63),
     rRet21: accRet(fRet21), rRet63: accRet(fRet63),
@@ -500,20 +551,22 @@ function setupSelfPredict(){
         try {
           const di = parseInt(dateSel.value, 10), pi = parseInt(valSel.value, 10);
           const series = parseXlsxToSeries(_predictBuf, di, pi);
-          info.textContent = `已解析 ${series.prices.length} 行。训练随机森林（用自己的数据，可能卡顿几秒）…`;
-          setTimeout(() => {
-            try {
-              const model = selfTrain(series.prices);
-              const latest = series.prices[series.prices.length - 1];
-              const pUp21 = model.fDir21.predict(model.lastX);
-              const pUp63 = model.fDir63.predict(model.lastX);
-              const ret21 = model.fRet21.predict(model.lastX);
-              const ret63 = model.fRet63.predict(model.lastX);
-              const t21 = latest * (1 + ret21 / 100), t63 = latest * (1 + ret63 / 100);
-              renderSelfPredict(series, latest, { pUp21, pUp63, ret21, ret63, t21, t63 }, model, info);
-            } catch (err) { info.textContent = '预测失败：' + err.message; }
-            finally { btn.disabled = false; }
-          }, 40);
+          info.textContent = `已解析 ${series.prices.length} 行。加载宏观因子并训练随机森林（可能卡顿几秒）…`;
+          loadMacroHistory().then(() => {
+            setTimeout(() => {
+              try {
+                const model = selfTrain(series.prices, series.dates, macroFor);
+                const latest = series.prices[series.prices.length - 1];
+                const pUp21 = model.fDir21.predict(model.lastX);
+                const pUp63 = model.fDir63.predict(model.lastX);
+                const ret21 = model.fRet21.predict(model.lastX);
+                const ret63 = model.fRet63.predict(model.lastX);
+                const t21 = latest * (1 + ret21 / 100), t63 = latest * (1 + ret63 / 100);
+                renderSelfPredict(series, latest, { pUp21, pUp63, ret21, ret63, t21, t63 }, model, info);
+              } catch (err) { info.textContent = '预测失败：' + err.message; }
+              finally { btn.disabled = false; }
+            }, 40);
+          }).catch(e => { info.textContent = '宏观因子加载失败：' + e.message; btn.disabled = false; });
         } catch (err) { info.textContent = '解析失败：' + err.message; btn.disabled = false; }
       });
     }, 40);
@@ -525,13 +578,16 @@ function renderSelfPredict(series, latest, pred, model, info){
   const fmtP = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
   const dir = p => p >= 0.5 ? '涨' : '跌';
   info.innerHTML =
-    `基于你上传的 <b>${series.prices.length}</b> 行自训练模型（不看宏观因子，纯技术面）。` +
+    `基于你上传的 <b>${series.prices.length}</b> 行自训练模型。` +
+    (model.usedMacro
+      ? ` 已按日期 JOIN 打包的<b>宏观因子</b>（实际利率 / 美元 / VIX / 黄金波动率 / 央行净购金，共 ${model.nMacro} 个匹配点），特征 = 9 技术 + 6 宏观，与主模型同源。`
+      : ` 未匹配到宏观因子（数据早于 2000 或无日期列），仅用 9 个价格技术特征。`) +
     ` 最新价 ≈ <b>${latest.toFixed(2)}</b>。<br/>` +
     `• 21日：P(涨)=<b>${(pred.pUp21 * 100).toFixed(1)}%</b> → 预测${dir(pred.pUp21)} ${fmtP(pred.ret21)}，目标≈${pred.t21.toFixed(2)}。` +
     ` <span style="color:var(--muted)">[样本外方向准确率 ${(model.rDir21 * 100).toFixed(0)}%]</span><br/>` +
     `• 63日：P(涨)=<b>${(pred.pUp63 * 100).toFixed(1)}%</b> → 预测${dir(pred.pUp63)} ${fmtP(pred.ret63)}，目标≈${pred.t63.toFixed(2)}。` +
     ` <span style="color:var(--muted)">[样本外方向准确率 ${(model.rDir63 * 100).toFixed(0)}%]</span><br/>` +
-    `<span style="color:var(--muted)">幅度为点估计、误差较大；样本外测试点 ${model.testN} 个。此模型用你自己的历史训练，可能与上方宏观模型结论不同。</span>`;
+    `<span style="color:var(--muted)">幅度为点估计、误差较大；样本外测试点 ${model.testN} 个。此模型用你自己的历史 + 同期宏观训练，可能与上方宏观模型结论不同。</span>`;
 
   // 图：最后 120 日 + 预测的两个目标点
   const L = 120, n = series.prices.length, start = Math.max(0, n - L);
