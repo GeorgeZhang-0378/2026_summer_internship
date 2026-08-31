@@ -514,7 +514,75 @@ function selfTrain(prices, dates, macroFor){
   };
 }
 
+// 为"某个时点"构造与训练时同维的特征向量（9 技术，或 9+6 宏观）
+//   prices2 / dates2：该时点及之前的历史（含该时点的价格）；usedMacro：训练时是否用了宏观
+function featureAtEnd(prices2, dates2, usedMacro){
+  const n = prices2.length;
+  if (n < 253) return null;
+  const MA20 = _MArr(prices2, 20), MA60 = _MArr(prices2, 60), MA252 = _MArr(prices2, 252);
+  const dr = [0]; for (let i = 1; i < n; i++) dr.push(prices2[i] / prices2[i - 1] - 1);
+  const x = _featAt(prices2, MA20, MA60, MA252, dr, n - 1);
+  if (!x) return null;
+  if (!usedMacro) return x;
+  const mv = macroFor ? _macroVec(macroFor(dates2[n - 1])) : null;
+  return mv ? x.concat(mv) : null;
+}
+
+// "预测某个时点"：用户在训练后指定日期（+可选价格），用已训练模型预测该点未来 21/63 日
+function queryAnchor(){
+  const out = document.getElementById('pred_query_out');
+  if (!_lastModel || !_lastSeries) { out.textContent = '请先训练模型'; return; }
+  const dateStr = document.getElementById('pred_date').value;
+  const priceStr = document.getElementById('pred_price').value;
+  if (!dateStr) { out.textContent = '请先选择日期'; return; }
+  const series = _lastSeries, model = _lastModel;
+  // 找 ≤ dateStr 的最大索引（避免选到周末/非交易日而整体落空）；无日期列则走未来分支
+  const allDates = series.dates.filter(Boolean);
+  const lastDate = allDates.length ? allDates[allDates.length - 1] : '';
+  let isPast = false, origIdx = -1, anchorPrice = null, prices2 = null, dates2 = null;
+  if (lastDate && dateStr <= lastDate) {
+    for (let k = 0; k < series.dates.length; k++) {
+      const d = series.dates[k];
+      if (!d) continue;
+      if (d <= dateStr) origIdx = k; else break;
+    }
+    if (origIdx >= 0) {
+      isPast = true;
+      prices2 = series.prices.slice(0, origIdx + 1);
+      dates2 = series.dates.slice(0, origIdx + 1);
+      anchorPrice = series.prices[origIdx];
+    }
+  }
+  if (!isPast) {
+    if (priceStr === '' || isNaN(parseFloat(priceStr)) || parseFloat(priceStr) <= 0) {
+      out.textContent = '未来时点 / 无日期列：请填写该日价格（锚定价，模型从它出发预测后续走势）';
+      return;
+    }
+    anchorPrice = parseFloat(priceStr);
+    prices2 = series.prices.concat([anchorPrice]);
+    dates2 = series.dates.concat([dateStr || '']);
+  }
+  const x = featureAtEnd(prices2, dates2, model.usedMacro);
+  if (!x) { out.textContent = '该时点无法构造特征（历史不足 253 天，或缺少对应宏观因子）'; return; }
+  const pUp21 = model.fDir21.predict(x), pUp63 = model.fDir63.predict(x);
+  const ret21 = model.fRet21.predict(x), ret63 = model.fRet63.predict(x);
+  const t21 = anchorPrice * (1 + ret21 / 100), t63 = anchorPrice * (1 + ret63 / 100);
+  let extra = '';
+  if (isPast) {
+    const n = series.prices.length;
+    if (origIdx + 21 < n) { const a = series.prices[origIdx + 21] / series.prices[origIdx] - 1; const hit = (pUp21 >= 0.5) === (a > 0); extra += ` 实际21日=${(a*100).toFixed(1)}%(${a>0?'涨':'跌'},${(hit?'命中✅':'失误❌')})`; }
+    if (origIdx + 63 < n) { const a = series.prices[origIdx + 63] / series.prices[origIdx] - 1; const hit = (pUp63 >= 0.5) === (a > 0); extra += ` 实际63日=${(a*100).toFixed(1)}%(${a>0?'涨':'跌'},${(hit?'命中✅':'失误❌')})`; }
+  }
+  out.innerHTML =
+    `从 <b>${dateStr}</b>（价≈${anchorPrice.toFixed(2)}）：${isPast ? '当时' : '情景'}预测 → ` +
+    `P(涨)21日=${(pUp21*100).toFixed(0)}% / 63日=${(pUp63*100).toFixed(0)}%；` +
+    `21日预测${ret21>=0?'涨':'跌'}${ret21.toFixed(1)}%→目标${t21.toFixed(2)}，` +
+    `63日预测${ret63>=0?'涨':'跌'}${ret63.toFixed(1)}%→目标${t63.toFixed(2)}。` +
+    (extra ? `<span style="color:var(--muted)">${extra}</span>` : `<span style="color:var(--muted)">（未来时点无实际值对照）</span>`);
+}
+
 let _predictBuf = null;  // 已选文件的二进制 buffer（列选择 / 预测共用）
+let _lastModel = null, _lastSeries = null;  // 训练完成后保存，供"预测某个时点"复用
 function setupSelfPredict(){
   const fileEl = document.getElementById('predict_file');
   const btn = document.getElementById('predict_btn');
@@ -526,6 +594,7 @@ function setupSelfPredict(){
   // 选文件后立即读取列名，填充下拉框让用户确认/修改列映射
   fileEl.addEventListener('change', () => {
     const f = fileEl.files && fileEl.files[0];
+    const qBox = document.getElementById('predict_query'); if (qBox) qBox.style.display = 'none';
     if (!f) { _predictBuf = null; dateSel.disabled = true; valSel.disabled = true; btn.disabled = true; return; }
     const reader = new FileReader();
     reader.onload = ev => {
@@ -562,7 +631,9 @@ function setupSelfPredict(){
                 const ret21 = model.fRet21.predict(model.lastX);
                 const ret63 = model.fRet63.predict(model.lastX);
                 const t21 = latest * (1 + ret21 / 100), t63 = latest * (1 + ret63 / 100);
+                _lastModel = model; _lastSeries = series;
                 renderSelfPredict(series, latest, { pUp21, pUp63, ret21, ret63, t21, t63 }, model, info);
+                revealPredictQuery(series);
               } catch (err) { info.textContent = '预测失败：' + err.message; }
               finally { btn.disabled = false; }
             }, 40);
@@ -571,6 +642,23 @@ function setupSelfPredict(){
       });
     }, 40);
   });
+
+  // “预测某个时点”按钮：复用上面训练好的模型
+  const qBtn = document.getElementById('pred_query_btn');
+  if (qBtn) qBtn.addEventListener('click', queryAnchor);
+}
+
+// 训练完成后显示“预测某个时点”面板，并把日期选择器范围限定在用户序列内
+function revealPredictQuery(series){
+  const box = document.getElementById('predict_query');
+  const dEl = document.getElementById('pred_date');
+  if (box) box.style.display = 'block';
+  if (dEl && series.dates.length){
+    const first = series.dates.find(d => d && d.length === 10);
+    const last = [...series.dates].reverse().find(d => d && d.length === 10);
+    if (first) dEl.min = first;
+    if (last) dEl.max = last;
+  }
 }
 
 function renderSelfPredict(series, latest, pred, model, info){
