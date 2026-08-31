@@ -1,9 +1,10 @@
-name: Refresh Gold Predictor
+name: Refresh Gold & SH-Gold Predictors
 
 on:
   schedule:
-    # 每天 UTC 00:17 自动刷新（避开整点高峰）
-    - cron: '17 0 * * *'
+    # 每日 UTC 23:17（北京时间次日 07:17）自动刷新。
+    # 此时美盘(21:00 UTC 收盘)与沪盘(07:00 UTC 收盘)当日数据均已落地，FRED 日线也已更新。
+    - cron: '17 23 * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -24,24 +25,39 @@ jobs:
       - name: Install dependencies
         run: pip install --quiet pandas numpy scikit-learn requests
 
-      - name: Fetch factors (FRED no-key + Twelvedata if TD_KEY set, else local gold_history.csv)
+      # ---------- 美国黄金（docs/predictor） ----------
+      - name: "[US Gold] Fetch factors (FRED no-key + Twelvedata if TD_KEY set, else local gold_history.csv)"
         working-directory: docs/predictor
         env:
           TD_KEY: ${{ secrets.TD_KEY }}
         run: python fetch_factors.py
 
-      - name: Train model & regenerate JSON
+      - name: "[US Gold] Train model & regenerate JSON"
         working-directory: docs/predictor
         run: python train_rf.py
 
-      - name: Build replay dataset (historical walk-back)
+      - name: "[US Gold] Build replay dataset (historical walk-back)"
         working-directory: docs/predictor
         run: python build_replay.py
 
+      # ---------- 沪金（docs/shgold） ----------
+      - name: "[SH Gold] Fetch SHFE AU0 + macro factors"
+        working-directory: docs/shgold
+        run: python fetch_shgold.py
+
+      - name: "[SH Gold] Train model & regenerate JSON"
+        working-directory: docs/shgold
+        run: python train_shgold.py
+
+      - name: "[SH Gold] Build replay dataset"
+        working-directory: docs/shgold
+        run: python build_replay_shgold.py
+
+      # ---------- 提交回写 ----------
       - name: Commit updated predictions
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/predictor/data/signals.json docs/predictor/data/backtest.json docs/predictor/data/replay.json
-          git diff --cached --quiet || git commit -m "daily: refresh gold predictor (as_of $(date -u +%Y-%m-%d))"
+          git add docs/predictor/data docs/shgold/data
+          git diff --cached --quiet || git commit -m "daily: refresh gold + shgold predictors (as_of $(date -u +%Y-%m-%d))"
           git push
