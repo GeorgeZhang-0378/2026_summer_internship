@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>沪金走势与因子预测原型</title>
+<style>
+:root{--gold:#b8860b;--line:#e2e2e2;--muted:#888;--bg:#fff;--fg:#222;--blue:#185FA5;--green:#3B6D11;--red:#A32D2D}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--fg);padding:24px;max-width:1080px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.panel{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.panel h3{margin:0 0 10px;font-size:15px}
+.chart{width:100%}
+.cards{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.card{flex:1;min-width:150px;border:1px solid var(--line);border-radius:10px;padding:12px}
+.card .k{font-size:12px;color:var(--muted)}
+.card .v{font-size:20px;font-weight:600;margin-top:4px}
+.up{color:var(--red)}.down{color:var(--green)}
+footer{color:var(--muted);font-size:12px;margin-top:24px}
+label{font-size:13px}
+input[type=date],select{padding:6px;border:1px solid var(--line);border-radius:6px}
+button{background:var(--gold);color:#fff;border:1px solid var(--gold);border-radius:6px;padding:6px 12px;cursor:pointer}
+.sig-line{font-size:13px;line-height:1.7;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>沪金走势与因子预测原型 <span class="sub" id="asof"></span></h1>
+<p class="sub">对标美国黄金因子原型的方法论：沪金(元/克) ≈ 国际金价(USD/oz) × USD/CNY ÷ 31.1035 + 国内溢价。walk-forward 随机森林预测 21/63 日方向。</p>
+
+<div class="panel">
+  <h3>当前信号（SHFE 黄金 AU 主力连续）</h3>
+  <div class="cards" id="sig_cards"></div>
+  <div class="sig-line" id="sig_line"></div>
+</div>
+
+<div class="panel">
+  <h3>历史回放：给定日期，只用之前数据预测未来（预测 vs 实际 两条线）</h3>
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+    <label>选择日期：<input type="date" id="replay_date" style="padding:6px;border:1px solid var(--line);border-radius:6px"></label>
+    <label>预测窗口：
+      <select id="replay_horizon">
+        <option value="21">21 日</option>
+        <option value="63" selected>63 日</option>
+      </select>
+    </label>
+  </div>
+  <div id="c_replay" class="chart" style="height:380px"></div>
+  <p id="replay_info" class="sub" style="margin:6px 0 0"></p>
+</div>
+
+<div class="panel">
+  <h3>因子重要性（21 日方向模型）</h3>
+  <div id="c_factors" class="chart" style="height:420px"></div>
+</div>
+
+<div class="panel">
+  <h3>策略回测：模型信号 vs 买入持有</h3>
+  <div id="c_backtest" class="chart" style="height:360px"></div>
+</div>
+
+<div class="panel">
+  <h3>上传你的沪金数据 · 自分析走势</h3>
+  <p class="sub" style="margin:0 0 8px">选入 Excel/CSV（含日期列 + 价格列），本地解析，不上传服务器。可滚轮缩放 / 拖拽平移。</p>
+  <input type="file" id="shgold_file" accept=".xlsx,.xls,.csv" style="padding:6px;border:1px solid var(--line);border-radius:6px"/>
+  <label style="font-size:13px;margin-left:8px">日期列：<select id="sa_date" disabled></select></label>
+  <label style="font-size:13px;margin-left:8px">数值列：<select id="sa_value" disabled></select></label>
+  <div id="c_xlsx" class="chart" style="height:360px;margin-top:10px"></div>
+</div>
+
+<footer>纯静态页面 · 浏览器本地渲染 · 无后端实时拉取。数据由 fetch_shgold.py / train_shgold.py 预生成后随站点发布。</footer>
+<script src="./echarts.min.js"></script>
+<script src="./xlsx.full.min.js"></script>
+<script src="./app.js?v=1"></script>
+</body>
+</html>
