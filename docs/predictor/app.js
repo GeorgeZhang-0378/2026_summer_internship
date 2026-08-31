@@ -308,6 +308,206 @@ function setupXlsxUpload(){
   });
 }
 
+// ---------- 上传即预测：纯浏览器内随机森林（用你自己的数据训练） ----------
+// 与上方"自分析走势"相互独立：这里会把你上传的序列当训练集，训练一个
+// 预测未来 21/63 日涨跌方向与幅度的模型（不含宏观因子，纯技术面自训练）。
+
+// 解析 Excel/CSV -> {dates, prices}（复用 parseDate 与列自动识别）
+function parseXlsxToSeries(buf){
+  if (typeof XLSX === 'undefined') throw new Error('XLSX 解析库未加载');
+  const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+  let sheet = wb.Sheets[wb.SheetNames[0]], best = -1;
+  for (const nm of wb.SheetNames) {
+    const ref = wb.Sheets[nm]['!ref'];
+    if (!ref) continue;
+    const er = XLSX.utils.decode_range(ref).e.r;
+    if (er > best) { best = er; sheet = wb.Sheets[nm]; }
+  }
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+  if (rows.length < 3) throw new Error('数据行太少');
+  const header = rows[0].map((h, i) => ({ h: String(h == null ? '' : h).trim().toLowerCase(), i }));
+  const dateIdx = header.find(c => /date|日期|时间|time/.test(c.h))?.i ?? -1;
+  let priceIdx = header.find(c => /close|price|gold|收盘|价格|adj|value|数值/.test(c.h))?.i ?? -1;
+  if (priceIdx < 0) for (let c = 0; c < rows[1].length; c++) { if (c === dateIdx) continue; if (typeof rows[1][c] === 'number') { priceIdx = c; break; } }
+  if (priceIdx < 0) throw new Error('未找到价格列（需含数值的列）');
+  const data = [];
+  for (let r = 1; r < rows.length; r++) {
+    const rv = rows[r];
+    const d = dateIdx >= 0 ? parseDate(rv[dateIdx]) : null;
+    const p = Number(rv[priceIdx]);
+    if (isNaN(p) || p <= 0) continue;
+    if (dateIdx >= 0 && !d) continue;
+    data.push({ t: d, p });
+  }
+  if (data.length < 60) throw new Error('有效数值不足（需 ≥60 行）');
+  if (data[0].t) data.sort((a, b) => a.t - b.t);
+  return { dates: data.map(d => d.t ? d.t.toISOString().slice(0, 10) : ''), prices: data.map(d => d.p) };
+}
+
+// ---- 随机森林（分类 + 回归，从零实现） ----
+function _agg(y, idx, regression){ let s = 0; for (const i of idx) s += y[i]; return s / idx.length; }
+function _imp(y, idx, regression){
+  if (regression){ const m = _agg(y, idx, true); let s = 0; for (const i of idx) s += (y[i] - m) ** 2; return s / idx.length; }
+  const p = _agg(y, idx, false); return p * (1 - p); // gini
+}
+function _grow(X, y, idx, depth, cfg){
+  if (depth >= cfg.maxDepth || idx.length <= cfg.minLeaf)
+    return { leaf: true, val: _agg(y, idx, cfg.regression) };
+  const d = X[0].length, all = [...Array(d).keys()], feats = [];
+  for (let k = 0; k < cfg.mtry; k++){ const j = (Math.random() * all.length) | 0; feats.push(all.splice(j, 1)[0]); }
+  const curImp = _imp(y, idx, cfg.regression);
+  let best = null;
+  for (const f of feats){
+    const vals = idx.map(i => X[i][f]).sort((a, b) => a - b);
+    const thr = []; const step = Math.max(1, Math.floor(vals.length / 8));
+    for (let q = step; q < vals.length; q += step) thr.push(vals[q]);
+    if (!thr.length) thr.push(vals[(vals.length / 2) | 0]);
+    for (const t of thr){
+      const left = [], right = [];
+      for (const i of idx) (X[i][f] <= t ? left : right).push(i);
+      if (left.length < cfg.minLeaf || right.length < cfg.minLeaf) continue;
+      const imp = (left.length * _imp(y, left, cfg.regression) + right.length * _imp(y, right, cfg.regression)) / idx.length;
+      if (best === null || imp < best.imp) best = { imp, f, t, left, right };
+    }
+  }
+  if (best === null || best.imp >= curImp) return { leaf: true, val: _agg(y, idx, cfg.regression) };
+  return { leaf: false, f: best.f, t: best.t,
+    left: _grow(X, y, best.left, depth + 1, cfg), right: _grow(X, y, best.right, depth + 1, cfg) };
+}
+function _predTree(node, x){ while (!node.leaf) node = (x[node.f] <= node.t) ? node.left : node.right; return node.val; }
+function buildForest(X, y, cfg){
+  const n = X.length, trees = [];
+  for (let t = 0; t < cfg.nTrees; t++){
+    const idx = []; for (let k = 0; k < n; k++) idx.push((Math.random() * n) | 0);
+    trees.push(_grow(X, y, idx, 0, cfg));
+  }
+  return { predict: x => { let s = 0; for (const tr of trees) s += _predTree(tr, x); return s / trees.length; }, trees };
+}
+
+// 构建单点特征（需 i>=252 才有完整回看）
+function _featAt(prices, MA20, MA60, MA252, dr, i){
+  if (i < 252) return null;
+  const w = 5;
+  const ret = k => prices[i] / prices[i - k] - 1;
+  const std = (len) => { if (i < len) return null; let s = 0; for (let k = i - len + 1; k <= i; k++) s += dr[k]; const m = s / len; let v = 0; for (let k = i - len + 1; k <= i; k++) v += (dr[k] - m) ** 2; return Math.sqrt(v / len); };
+  const f = [ret(5), ret(20), ret(60), ret(252), std(20), std(60),
+             prices[i] / MA20[i] - 1, prices[i] / MA60[i] - 1, prices[i] / MA252[i] - 1];
+  return f.some(v => v == null || !isFinite(v)) ? null : f;
+}
+function _MArr(prices, w){ const n = prices.length, out = new Array(n).fill(null); let s = 0; for (let i = 0; i < n; i++){ s += prices[i]; if (i >= w) s -= prices[i - w]; if (i >= w - 1) out[i] = s / w; } return out; }
+
+// 训练：返回模型 + 样本外测试精度
+function selfTrain(prices){
+  const n = prices.length;
+  const MA20 = _MArr(prices, 20), MA60 = _MArr(prices, 60), MA252 = _MArr(prices, 252);
+  const dr = [0]; for (let i = 1; i < n; i++) dr.push(prices[i] / prices[i - 1] - 1);
+  const rows = [];
+  for (let i = 252; i + 63 < n; i++){
+    const x = _featAt(prices, MA20, MA60, MA252, dr, i);
+    if (!x) continue;
+    const r21 = prices[i + 21] / prices[i] - 1, r63 = prices[i + 63] / prices[i] - 1;
+    rows.push({ x, dir21: r21 > 0 ? 1 : 0, ret21: r21 * 100, dir63: r63 > 0 ? 1 : 0, ret63: r63 * 100 });
+  }
+  if (rows.length < 100) throw new Error('样本不足（需 ≥100 个可训练点，约 1 年以上日线）');
+  const m = rows.length, cut = Math.floor(m * 0.8);
+  let trainIdx = []; for (let k = 0; k < cut; k++) trainIdx.push(k);
+  if (trainIdx.length > 4000){ const sel = []; const pool = trainIdx.slice(); while (sel.length < 4000 && pool.length){ sel.push(pool.splice((Math.random() * pool.length) | 0, 1)[0]); } trainIdx = sel; }
+  const X = trainIdx.map(k => rows[k].x);
+  const cfg = { nTrees: 120, maxDepth: 7, minLeaf: 30, mtry: 3, regression: false };
+  const cfgR = { ...cfg, regression: true };
+  const fDir21 = buildForest(X, trainIdx.map(k => rows[k].dir21), cfg);
+  const fDir63 = buildForest(X, trainIdx.map(k => rows[k].dir63), cfg);
+  const fRet21 = buildForest(X, trainIdx.map(k => rows[k].ret21), cfgR);
+  const fRet63 = buildForest(X, trainIdx.map(k => rows[k].ret63), cfgR);
+  const test = []; for (let k = cut; k < m; k++) test.push(k);
+  const accDir = f => { let ok = 0; for (const k of test) if ((f.predict(rows[k].x) >= 0.5 ? 1 : 0) === rows[k].dir21) ok++; return ok / test.length; };
+  const accRet = f => { let ok = 0, mae = 0; for (const k of test){ const p = f.predict(rows[k].x); mae += Math.abs(p - rows[k].ret21); if ((p >= 0 ? 1 : 0) === (rows[k].ret21 >= 0 ? 1 : 0)) ok++; } return { acc: ok / test.length, mae: mae / test.length }; };
+  const finalX = _featAt(prices, MA20, MA60, MA252, dr, n - 1);
+  if (!finalX) throw new Error('最新点回看不足（序列尾部数据异常）');
+  return {
+    fDir21, fDir63, fRet21, fRet63,
+    lastX: finalX,
+    testN: test.length,
+    rDir21: accDir(fDir21), rDir63: accDir(fDir63),
+    rRet21: accRet(fRet21), rRet63: accRet(fRet63),
+  };
+}
+
+function setupSelfPredict(){
+  const el = document.getElementById('predict_file');
+  const btn = document.getElementById('predict_btn');
+  if (!el || !btn) return;
+  btn.addEventListener('click', () => {
+    const f = el.files && el.files[0];
+    if (!f) { document.getElementById('predict_info').textContent = '请先选择文件'; return; }
+    btn.disabled = true;
+    const info = document.getElementById('predict_info');
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const buf = ev.target.result;
+      info.textContent = '解析 + 特征工程…';
+      setTimeout(() => {
+        ensureXLSX(() => {
+          try {
+            const series = parseXlsxToSeries(buf);
+            info.textContent = `已解析 ${series.prices.length} 行。训练随机森林（用自己的数据，可能卡顿几秒）…`;
+            setTimeout(() => {
+              try {
+                const model = selfTrain(series.prices);
+                const latest = series.prices[series.prices.length - 1];
+                const pUp21 = model.fDir21.predict(model.lastX);
+                const pUp63 = model.fDir63.predict(model.lastX);
+                const ret21 = model.fRet21.predict(model.lastX);
+                const ret63 = model.fRet63.predict(model.lastX);
+                const t21 = latest * (1 + ret21 / 100), t63 = latest * (1 + ret63 / 100);
+                renderSelfPredict(series, latest, { pUp21, pUp63, ret21, ret63, t21, t63 }, model, info);
+              } catch (err) { info.textContent = '预测失败：' + err.message; }
+              finally { btn.disabled = false; }
+            }, 40);
+          } catch (err) { info.textContent = '解析失败：' + err.message; btn.disabled = false; }
+        });
+      }, 40);
+    };
+    reader.onerror = () => { info.textContent = '读取文件失败'; btn.disabled = false; };
+    reader.readAsArrayBuffer(f);
+  });
+}
+
+function renderSelfPredict(series, latest, pred, model, info){
+  const fmtP = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  const dir = p => p >= 0.5 ? '涨' : '跌';
+  info.innerHTML =
+    `基于你上传的 <b>${series.prices.length}</b> 行自训练模型（不看宏观因子，纯技术面）。` +
+    ` 最新价 ≈ <b>${latest.toFixed(2)}</b>。<br/>` +
+    `• 21日：P(涨)=<b>${(pred.pUp21 * 100).toFixed(1)}%</b> → 预测${dir(pred.pUp21)} ${fmtP(pred.ret21)}，目标≈${pred.t21.toFixed(2)}。` +
+    ` <span style="color:var(--muted)">[样本外方向准确率 ${(model.rDir21 * 100).toFixed(0)}%]</span><br/>` +
+    `• 63日：P(涨)=<b>${(pred.pUp63 * 100).toFixed(1)}%</b> → 预测${dir(pred.pUp63)} ${fmtP(pred.ret63)}，目标≈${pred.t63.toFixed(2)}。` +
+    ` <span style="color:var(--muted)">[样本外方向准确率 ${(model.rDir63 * 100).toFixed(0)}%]</span><br/>` +
+    `<span style="color:var(--muted)">幅度为点估计、误差较大；样本外测试点 ${model.testN} 个。此模型用你自己的历史训练，可能与上方宏观模型结论不同。</span>`;
+
+  // 图：最后 120 日 + 预测的两个目标点
+  const L = 120, n = series.prices.length, start = Math.max(0, n - L);
+  const known = series.prices.slice(start);
+  const kdates = series.dates.slice(start);
+  const xlabels = kdates.concat(['+21d', '+63d']);
+  const knownData = known.concat([null, null]);
+  const projData = known.map(() => null); projData[known.length - 1] = latest;
+  projData.push(pred.t21, pred.t63);
+  const c = echarts.getInstanceByDom(chartEl) || echarts.init(chartEl);
+  c.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['你的价格', '模型预测目标'], top: 0 },
+    grid: { left: 55, right: 20, top: 36, bottom: 50 },
+    xAxis: { type: 'category', data: xlabels, axisLabel: { rotate: 45, fontSize: 10 } },
+    yAxis: { type: 'value', scale: true, name: '金价' },
+    series: [
+      { name: '你的价格', type: 'line', data: knownData, showSymbol: false, lineStyle: { color: COL.gold, width: 2 } },
+      { name: '模型预测目标', type: 'line', data: projData, showSymbol: true, symbolSize: 9, connectNulls: false,
+        lineStyle: { color: COL.blue, width: 2, type: 'dashed' }, itemStyle: { color: COL.blue } }
+    ]
+  }, true);
+}
+
 (async ()=>{
   try{
     const sig = await loadJSON('./data/signals.json');
@@ -335,8 +535,9 @@ function setupXlsxUpload(){
     replayEl.addEventListener('change', drawReplay);
     horizonEl.addEventListener('change', drawReplay);
     setupXlsxUpload();
+    setupSelfPredict();
     window.addEventListener('resize',()=>{
-      ['c_factors','c_prob','c_forecast','c_backtest','c_signal','c_imp','c_replay','c_xlsx']
+      ['c_factors','c_prob','c_forecast','c_backtest','c_signal','c_imp','c_replay','c_xlsx','c_predict']
         .forEach(id=>echarts.getInstanceByDom(document.getElementById(id))?.resize());
     });
   }catch(e){
