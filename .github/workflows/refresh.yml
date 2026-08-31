@@ -26,7 +26,7 @@ jobs:
         run: pip install --quiet pandas numpy scikit-learn requests
 
       # ---------- 美国黄金（docs/predictor） ----------
-      - name: "[US Gold] Fetch factors (FRED no-key + Twelvedata if TD_KEY set, else local gold_history.csv)"
+      - name: "[US Gold] Fetch factors (FRED no-key; gold via TD_KEY→Yahoo→Stooq→local fallback, no key needed)"
         working-directory: docs/predictor
         env:
           TD_KEY: ${{ secrets.TD_KEY }}

@@ -51,10 +51,28 @@ def fetch_fred(series_id: str, start: str = START) -> pd.Series:
     return out.sort_index()
 
 
-def fetch_gold() -> pd.Series:
-    """金价历史：优先 Twelvedata key，其次本地 CSV。"""
-    key = os.getenv("TD_KEY") or os.getenv("TWELVEDATA_KEY")
-    if key:
+def _read_local_gold() -> pd.Series:
+    p = os.path.join(DATA, "gold_history.csv")
+    if os.path.exists(p):
+        df = pd.read_csv(p)
+        df.columns = [c.strip() for c in df.columns]
+        datecol = df.columns[0]
+        df["date"] = pd.to_datetime(df[datecol])
+        goldcol = [c for c in df.columns if c.lower() in ("close", "gold", "price", "value")][0]
+        return df.set_index("date")[goldcol].astype(float).sort_index()
+    return None
+
+
+def _write_gold(s: pd.Series):
+    p = os.path.join(DATA, "gold_history.csv")
+    out = s.sort_index().dropna()
+    out.index = out.index.strftime("%Y-%m-%d")
+    out.index.name = "date"
+    out.rename("close").to_frame().to_csv(p)
+
+
+def _fetch_twelvedata(key: str):
+    try:
         url = (f"https://api.twelvedata.com/time_series?symbol=XAU/USD"
                f"&interval=1day&outputsize=4000&apikey={key}")
         r = requests.get(url, timeout=40)
@@ -65,18 +83,77 @@ def fetch_gold() -> pd.Series:
             df["gold"] = df["close"].astype(float)
             return df.set_index("date")["gold"].sort_index()
         print("[warn] Twelvedata 返回错误：", j.get("message", j), file=sys.stderr)
-    p = os.path.join(DATA, "gold_history.csv")
-    if os.path.exists(p):
-        df = pd.read_csv(p)
-        df.columns = [c.strip() for c in df.columns]
-        datecol = df.columns[0]
-        df["date"] = pd.to_datetime(df[datecol])
-        goldcol = [c for c in df.columns if c.lower() in ("close", "gold", "price", "value")][0]
+    except Exception as e:
+        print("[warn] Twelvedata 拉取失败：", e, file=sys.stderr)
+    return None
+
+
+def _fetch_yahoo(symbol: str):
+    """Yahoo Finance 日线（免费、无 key；GitHub Actions 环境可直连）。"""
+    try:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1y"
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=40)
+        j = r.json()
+        res = j["chart"]["result"][0]
+        ts = res["timestamp"]
+        close = res["indicators"]["quote"][0]["close"]
+        idx = pd.to_datetime(ts, unit="s").normalize()
+        s = pd.Series(close, index=idx, dtype=float).dropna()
+        return s.sort_index()
+    except Exception as e:
+        print("[warn] Yahoo 拉取失败：", e, file=sys.stderr)
+    return None
+
+
+def _fetch_stooq(symbol: str):
+    """Stooq 日线（免费、无 key；Yahoo 失败时的兜底）。"""
+    try:
+        url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=40)
+        df = pd.read_csv(io.StringIO(r.text))
+        df.columns = [c.strip().lower() for c in df.columns]
+        df["date"] = pd.to_datetime(df["date"])
+        goldcol = [c for c in df.columns if c in ("close", "gold", "price")][0]
         return df.set_index("date")[goldcol].astype(float).sort_index()
+    except Exception as e:
+        print("[warn] Stooq 拉取失败：", e, file=sys.stderr)
+    return None
+
+
+def fetch_gold() -> pd.Series:
+    """金价历史（目标变量）。自动更新，无需 key 即可工作：
+
+      1) Twelvedata（若设了 TD_KEY / TWELVEDATA_KEY，最稳）
+      2) Yahoo Finance GC=F（免费、无 key，GitHub Actions 可直连）
+      3) Stooq xauusd（免费、无 key，兜底）
+      4) 本地 data/gold_history.csv（全部在线源失败时，保证不崩）
+
+    无论用哪种方式，新数据都会合并回 gold_history.csv，
+    使后续每次运行从「最新快照」继续累积，模型历史不被截断。
+    """
+    live = None
+    key = os.getenv("TD_KEY") or os.getenv("TWELVEDATA_KEY")
+    if key:
+        live = _fetch_twelvedata(key)
+    if live is None:
+        live = _fetch_yahoo("GC=F")
+    if live is None:
+        live = _fetch_stooq("xauusd")
+    local = _read_local_gold()
+    if live is not None and len(live):
+        if local is not None and len(local):
+            merged = live.combine_first(local)
+            merged = merged[~merged.index.duplicated(keep="first")]
+        else:
+            merged = live
+        merged = merged.sort_index()
+        _write_gold(merged)
+        return merged
+    if local is not None:
+        return local
     raise SystemExit(
-        "\n[ERROR] 缺少金价历史。二选一：\n"
-        "  1) 设置环境变量 TD_KEY=你的Twelvedata免费key（https://twelvedata.com 注册即用）\n"
-        "  2) 放一份 data/gold_history.csv（至少两列：date, close）\n"
+        "\n[ERROR] 缺少金价历史，且所有在线源均不可用。\n"
+        "请放一份 data/gold_history.csv（至少两列：date, close）\n"
     )
 
 
