@@ -13,7 +13,7 @@ import os
 import datetime as dt
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import accuracy_score, confusion_matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -252,6 +252,26 @@ def main():
     live_p63 = float(clf_live63.predict_proba(df[feats].iloc[[-1]])[0][1])
     result["latest_P_up_21d"] = round(live_p21, 4)
     result["latest_P_up_63d"] = round(live_p63, 4)
+
+    # 最新一行「量级」预测（量化未来涨跌多少 %）：回归器直接预测未来收益率。
+    # target_* 在 factors.csv 中为小数（如 0.06=6%），输出统一转成百分比。
+    # 不确定性用「历史典型波动」（target 的标准差）表示，诚实反映幅度难预测。
+    last_feats = df[feats].iloc[[-1]]
+    last_gold = float(df["gold"].iloc[-1])
+    result["latest_gold"] = round(last_gold, 2)
+    for h in (21, 63):
+        tcol = f"target_{h}"
+        reg_labeled = df.dropna(subset=feats + [tcol])
+        y = reg_labeled[tcol].values
+        reg = RandomForestRegressor(n_estimators=300, max_depth=6,
+                                    min_samples_leaf=20, random_state=42, n_jobs=1)
+        reg.fit(reg_labeled[feats], y)
+        pred = float(reg.predict(last_feats)[0]) * 100.0      # 小数→百分比
+        err_band = float(np.std(y)) * 100.0                   # 历史典型波动（百分比）
+        result[f"latest_pred_ret_{h}d"] = round(pred, 2)
+        result[f"latest_pred_ret_{h}d_band"] = round(err_band, 2)
+        result[f"latest_target_price_{h}d"] = round(last_gold * (1 + pred / 100), 2)
+        print(f"        量级预测 {h}d: 收益≈{pred:+.2f}%  历史典型波动±{err_band:.2f}%  目标价位≈{result[f'latest_target_price_{h}d']}")
 
     # 写 JSON
     os.makedirs(SITE_DATA, exist_ok=True)

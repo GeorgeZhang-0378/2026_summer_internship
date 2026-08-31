@@ -32,6 +32,36 @@ function chartFactors(sig){
   });
 }
 
+function chartForecast(sig){
+  const g = document.getElementById('c_forecast');
+  if(!g) return;
+  const r21 = {h:'21日', p:sig.latest_pred_ret_21d, b:sig.latest_pred_ret_21d_band, tp:sig.latest_target_price_21d};
+  const r63 = {h:'63日', p:sig.latest_pred_ret_63d, b:sig.latest_pred_ret_63d_band, tp:sig.latest_target_price_63d};
+  const rows = [r21, r63];
+  const c = echarts.init(g);
+  c.setOption({
+    tooltip:{trigger:'axis', formatter: ps=>{
+      const r=rows[ps[0].dataIndex];
+      return `${r.h}预测收益 ${(r.p>0?'+':'')+r.p}%<br/>历史典型波动 ±${r.b}%<br/>目标价位 ≈ ${r.tp}`;
+    }},
+    grid:{left:60,right:90,top:20,bottom:30},
+    xAxis:{type:'value', name:'预测收益率 %', axisLabel:{formatter:'{value}%'}, splitLine:{lineStyle:{color:COL.line}}},
+    yAxis:{type:'category', data:rows.map(r=>r.h)},
+    series:[{
+      type:'bar', barWidth:'45%',
+      data: rows.map(r=>({value:r.p, itemStyle:{color: r.p>=0?COL.gold:COL.red}})),
+      label:{show:true, position:'right', formatter: p=> (p.value>0?'+':'')+p.value+'%'},
+      markLine:{silent:true, symbol:'none', data:[{xAxis:0}], lineStyle:{color:COL.muted}}
+    }]
+  });
+  const latest = sig.latest_gold;
+  const f1 = (r)=>`${(r.p>0?'+':'')+r.p}%（目标≈${r.tp}，±${r.b}%）`;
+  document.getElementById('forecast_note').innerHTML =
+    `当前金价 ≈ <b>${latest}</b>。下图是随机森林回归给出的<b>点估计（含两档窗口 = “多久”）</b>；`+
+    `幅度置信度低（方向可预测、幅度难预测），区间 = 历史典型波动，非精确预测。`+
+    ` 21日 ${f1(r21)} ／ 63日 ${f1(r63)}。模型不做连续路径/拐点预测，仅给 21天、63天 两个固定窗口。`;
+}
+
 function chartProb(sig){
   const c = echarts.init(document.getElementById('c_prob'));
   const v21 = Math.round(sig.latest_P_up_21d*100);
@@ -246,6 +276,18 @@ function analyzeXlsx(buf, info){
     + ` | 252日动量 ${sign(mom252)}${pct(mom252)} | 最大回撤 ${pct(maxdd)} | 年化波动率 ${pct(vol)} | 状态：<b>${regime}</b>`;
 }
 
+function ensureXLSX(cb){
+  if (typeof XLSX !== 'undefined') return cb();
+  // 主脚本未加载时，动态重试一次（应对偶发网络/缓存失败）
+  const info = document.getElementById('xlsx_info');
+  if (info) info.textContent = '正在加载 XLSX 解析库…';
+  const s = document.createElement('script');
+  s.src = './xlsx.full.min.js';
+  s.onload = cb;
+  s.onerror = () => { if (info) info.textContent = 'XLSX 解析库加载失败（检查网络后刷新页面重试）'; };
+  document.head.appendChild(s);
+}
+
 function setupXlsxUpload(){
   const el = document.getElementById('xlsx_file');
   if (!el) return;
@@ -256,8 +298,10 @@ function setupXlsxUpload(){
     info.textContent = '解析中…';
     const reader = new FileReader();
     reader.onload = ev => {
-      try { analyzeXlsx(ev.target.result, info); }
-      catch (err) { info.textContent = '解析失败：' + err.message; }
+      ensureXLSX(() => {
+        try { analyzeXlsx(ev.target.result, info); }
+        catch (err) { info.textContent = '解析失败：' + err.message; }
+      });
     };
     reader.onerror = () => info.textContent = '读取文件失败';
     reader.readAsArrayBuffer(f);
@@ -272,6 +316,7 @@ function setupXlsxUpload(){
     cards(sig);
     chartFactors(sig);
     chartProb(sig);
+    chartForecast(sig);
     // 回测：默认展示 63 日（真正跑赢买入持有的窗口），可由按钮切换
     chartBacktest(bt, 'h63');
     document.querySelectorAll('.toggle[data-bt]').forEach(btn=>{
@@ -291,7 +336,7 @@ function setupXlsxUpload(){
     horizonEl.addEventListener('change', drawReplay);
     setupXlsxUpload();
     window.addEventListener('resize',()=>{
-      ['c_factors','c_prob','c_backtest','c_signal','c_imp','c_replay','c_xlsx']
+      ['c_factors','c_prob','c_forecast','c_backtest','c_signal','c_imp','c_replay','c_xlsx']
         .forEach(id=>echarts.getInstanceByDom(document.getElementById(id))?.resize());
     });
   }catch(e){

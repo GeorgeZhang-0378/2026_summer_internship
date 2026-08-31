@@ -38,6 +38,12 @@
 
   <div class="cards" id="cards"></div>
 
+  <div class="panel full" style="margin-bottom:16px">
+    <h3>量化预测：未来涨跌多少、多久（随机森林回归）</h3>
+    <div id="c_forecast" class="chart" style="height:170px"></div>
+    <p id="forecast_note" class="sub" style="margin:10px 0 0"></p>
+  </div>
+
   <div class="grid">
     <div class="panel"><h3>当前因子 0–10 看多评分</h3><div id="c_factors" class="chart"></div></div>
     <div class="panel"><h3>模型：未来上涨概率 P(up)</h3><div id="c_prob" class="chart"></div></div>
@@ -116,6 +122,6 @@
   </details>
 
   <script src="./xlsx.full.min.js"></script>
-  <script src="./app.js?v=3"></script>
+  <script src="./app.js?v=4"></script>
 </body>
 </html>
