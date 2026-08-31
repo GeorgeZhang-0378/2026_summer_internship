@@ -117,51 +117,11 @@
         <li>选定日期后，信息栏会给出：模型预测未来 <b>21/63 日收益率 X%</b>，以及到如今<b>实际收益率 Y%</b>（涨/跌），并标注<b>方向命中 ✅ / 未命中 ❌</b>。</li>
         <li>"预测收益"来自回归器，"实际收益"是该日后真实金价算出的收益率；两者符号一致即方向命中。</li>
       </ul>
-      <h4>四、上传即预测（用你自己的数据训练）</h4>
-      <ul>
-        <li>这是页面最底部独立的模块：把你自己的金价序列（如 Gold.xlsx）选进来点“训练并预测”，浏览器会用这段历史<b>独立训练一个随机森林</b>（从零实现，不含宏观因子）。</li>
-        <li>它用 9 个技术面特征（5/20/60/252 日收益率、20/60 日波动率、价格相对 MA20/60/252 的偏离）预测未来 <b>21 日 / 63 日</b>的涨跌方向（P 涨）与幅度（收益率 %）。训练按时间顺序 80% 训练、20% 样本外测试，并报告测试集方向准确率。</li>
-        <li>它与上方“宏观因子模型”是<b>两套独立逻辑</b>：前者只看你数据的技术形态，后者看宏观基本面，结论可能不同。幅度是点估计、误差较大，方向（P 涨）才是较可靠的部分。</li>
-      <li><b>现在还会自动叠加宏观因子</b>：训练时按你数据的日期，从站点预打包的宏观历史（实际利率 DFII10 / 美股 NASDAQ / VIX / 美元指数 / 黄金波动率 GVZ / 央行年净购金 WGC，2000 年至今）里 JOIN 同期值，特征扩展为「9 技术 + 6 宏观」，与主模型同源。这些宏观数据是<b>公开历史、已随站点发布</b>，浏览器只在本地按日期切片匹配，<b>你的数据不会上传</b>。若你的数据早于 2000 年或无日期列，则自动降级为纯技术面。</li>
-      <li><b>训练完成后还能“预测某个时点”</b>：点“训练并预测”后，面板下方会出现日期选择框。选一个<b>历史日期</b>→ 用训练好的模型回测那一天的 21/63 日方向，并和真实涨跌对照（命中✅/失误❌）；选一个<b>未来日期</b>→ 填该日价格作为锚点，模型从它出发预测后续走势。这比“只预测最后一天”更接近于真正用模型去预测任意时点。</li>
-      </ul>
       <p style="color:var(--muted);margin-top:10px">数据：FRED 免 key 宏观因子 + 金价历史（Twelvedata）+ 央行年净购金（WGC）。模型：walk-forward 随机森林，严格样本外、无前视。原型，<b>非投资建议</b>。</p>
     </div>
   </details>
 
-  <div class="panel full" style="margin-top:16px">
-    <h3>上传即预测：用你自己的金价数据训练模型（纯浏览器，不上传服务器）</h3>
-    <p class="sub" style="margin:0 0 8px">把你的 Excel/CSV（含日期列 + 价格列）选进来，点“训练并预测”。模型会在你浏览器里用这段历史训练一个随机森林，预测未来 21 日 / 63 日的<b>涨跌方向</b>与<b>幅度</b>。与上方“自分析走势”互不影响，也与宏观因子模型是两个独立模型。</p>
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-      <input type="file" id="predict_file" accept=".xlsx,.xls,.csv" style="padding:6px;border:1px solid var(--line);border-radius:6px"/>
-      <label style="font-size:13px">日期列：
-        <select id="predict_date" disabled style="padding:5px;border:1px solid var(--line);border-radius:6px"></select>
-      </label>
-      <label style="font-size:13px">数值列（价格/收盘价）：
-        <select id="predict_value" disabled style="padding:5px;border:1px solid var(--line);border-radius:6px"></select>
-      </label>
-      <button id="predict_btn" class="toggle" style="background:var(--gold);color:#fff;border-color:var(--gold)" disabled>训练并预测</button>
-      <span id="predict_info" style="font-size:13px;color:var(--muted)">先选择文件；不同文件列名不同，选好后可在下拉框确认“日期列 / 数值列”。</span>
-    </div>
-    <div id="c_predict" class="chart" style="height:340px"></div>
-
-    <div id="predict_query" style="display:none;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
-      <h4 style="margin:0 0 8px;font-size:14px;color:var(--gold)">🔮 预测某个时点（复用上面已训练的模型）</h4>
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-        <label style="font-size:13px">时点日期：
-          <input type="date" id="pred_date" style="padding:6px;border:1px solid var(--line);border-radius:6px"/>
-        </label>
-        <label style="font-size:13px">该日价格（仅未来日期需填）：
-          <input type="number" id="pred_price" step="0.01" placeholder="仅未来日期需要" style="padding:6px;border:1px solid var(--line);border-radius:6px;width:150px"/>
-        </label>
-        <button id="pred_query_btn" class="toggle" style="background:#3b6fb5;color:#fff;border-color:#3b6fb5">查询该时点预测</button>
-      </div>
-      <p id="pred_query_out" style="font-size:13px;line-height:1.7;margin:6px 0 0"></p>
-      <p class="sub" style="margin:6px 0 0">选日期在“你的历史区间内”→ 输出当时模型对 21/63 日方向的预测，并与真实涨跌对照（命中✅/失误❌）；选一个未来日期 → 需填该日价格作为锚点，模型从它出发预测后续走势。两项都只使用已训练好的同一套模型。</p>
-    </div>
-  </div>
-
   <script src="./xlsx.full.min.js"></script>
-  <script src="./app.js?v=8"></script>
+  <script src="./app.js?v=9"></script>
 </body>
 </html>
