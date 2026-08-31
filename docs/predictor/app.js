@@ -270,9 +270,14 @@ function analyzeXlsx(buf, info){
   const c = echarts.getInstanceByDom(document.getElementById('c_xlsx')) || echarts.init(document.getElementById('c_xlsx'));
   c.setOption({
     tooltip: { trigger: 'axis' }, legend: { data: ['价格', 'MA20', 'MA60', 'MA252'], top: 0 },
-    grid: { left: 55, right: 20, top: 36, bottom: 50 },
+    grid: { left: 55, right: 20, top: 36, bottom: 80 },
     xAxis: { type: 'category', data: dates, axisLabel: { rotate: 45, fontSize: 10 } },
     yAxis: { type: 'value', scale: true, name: '金价' },
+    // 鼠标滚轮缩放 + 拖拽平移；底部滑块可做区间缩放
+    dataZoom: [
+      { type: 'inside', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false, preventDefaultMouseMove: true },
+      { type: 'slider', height: 16, bottom: 14, start: 0, end: 100 }
+    ],
     series: [
       { name: '价格', type: 'line', data: prices, showSymbol: false, lineStyle: { color: COL.gold, width: 2 } },
       { name: 'MA20', type: 'line', data: MA20, showSymbol: false, lineStyle: { color: COL.blue, width: 1.5 } },
