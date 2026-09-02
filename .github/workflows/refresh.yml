@@ -23,7 +23,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install --quiet pandas numpy scikit-learn requests
+        run: pip install --quiet "pandas==2.2.3" "numpy==1.26.4" "scikit-learn==1.5.2" "requests==2.32.3"
 
       # ---------- 美国黄金（docs/predictor） ----------
       - name: "[US Gold] Fetch factors (FRED no-key; gold via TD_KEY→Yahoo→Stooq→local fallback, no key needed)"
@@ -38,6 +38,7 @@ jobs:
 
       - name: "[US Gold] Build replay dataset (historical walk-back)"
         working-directory: docs/predictor
+        continue-on-error: true
         run: python build_replay.py
 
       # ---------- 沪金（docs/shgold） ----------
@@ -53,6 +54,7 @@ jobs:
 
       - name: "[SH Gold] Build replay dataset"
         working-directory: docs/shgold
+        continue-on-error: true
         run: python build_replay_shgold.py
 
       # ---------- 提交回写 ----------

@@ -8,6 +8,7 @@ build_replay.py — 生成"历史回放"数据 replay.json。
 """
 import json
 import os
+import sys
 import gc
 import pandas as pd
 import numpy as np
@@ -39,46 +40,44 @@ replay = []
 i = min_train
 while i < n - 21:
     cutoff = df.index[i]
-    sub = df[df.index <= cutoff]
-    feats = feas(len(sub))
-    entry = {"date": cutoff.strftime("%Y-%m-%d")}
-    for h in (21, 63):
-        yc = sub[f"dir_{h}"]
-        yr = sub[f"target_{h}"]
-        X = sub[feats]
-        Xtr, ytr_c = X.iloc[:-1].dropna(), yc.iloc[:-1].dropna()
-        Xtr, ytr_c = Xtr.align(ytr_c, join="inner", axis=0)
-        Xte = X.iloc[[-1]].dropna()
-        if len(Xtr) < 120 or Xte.isnull().any().any():
-            entry[f"p{h}"] = None
-            entry[f"ret{h}"] = None
-            entry[f"pred_ret{h}"] = None
-            continue
-        clf = RandomForestClassifier(n_estimators=120, max_depth=6,
-                                     min_samples_leaf=20, random_state=42, n_jobs=1)
-        clf.fit(Xtr, ytr_c)
-        p = float(clf.predict_proba(Xte)[0][1])
-        tgt = df[f"target_{h}"].get(cutoff)
-        # 回归器预测未来收益率（连续值），用于画出"模型预测路径"第三根线
-        Xtr_r, ytr_r = X.iloc[:-1].dropna(), yr.iloc[:-1].dropna()
-        Xtr_r, ytr_r = Xtr_r.align(ytr_r, join="inner", axis=0)
-        reg = RandomForestRegressor(n_estimators=120, max_depth=6,
-                                    min_samples_leaf=20, random_state=42, n_jobs=1)
-        reg.fit(Xtr_r, ytr_r)
-        pred_ret = float(reg.predict(Xte)[0])
-        entry[f"p{h}"] = round(p, 4)
-        entry[f"ret{h}"] = None if pd.isna(tgt) else round(float(tgt) * 100, 2)
-        entry[f"pred_ret{h}"] = round(pred_ret * 100, 2)
-    # 此后真实金价路径（最多 63 个交易日）
-    fut = df["gold"].loc[cutoff:].iloc[1:64]
-    entry["future"] = [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in fut.items()]
-    replay.append(entry)
-    i += 21
-    # 主动释放本轮训练好的模型与大块 DataFrame，避免长循环累积造成 OOM
     try:
-        del clf, reg, sub, X, Xtr, Xtr_r, ytr_c, ytr_r, Xte, fut
-    except NameError:
-        pass
+        sub = df[df.index <= cutoff]
+        feats = feas(len(sub))
+        entry = {"date": cutoff.strftime("%Y-%m-%d")}
+        for h in (21, 63):
+            yc = sub[f"dir_{h}"]
+            yr = sub[f"target_{h}"]
+            X = sub[feats]
+            Xtr, ytr_c = X.iloc[:-1].dropna(), yc.iloc[:-1].dropna()
+            Xtr, ytr_c = Xtr.align(ytr_c, join="inner", axis=0)
+            Xte = X.iloc[[-1]].dropna()
+            if len(Xtr) < 120 or Xte.isnull().any().any():
+                entry[f"p{h}"] = None
+                entry[f"ret{h}"] = None
+                entry[f"pred_ret{h}"] = None
+                continue
+            clf = RandomForestClassifier(n_estimators=120, max_depth=6,
+                                         min_samples_leaf=20, random_state=42, n_jobs=1)
+            clf.fit(Xtr, ytr_c)
+            p = float(clf.predict_proba(Xte)[0][1])
+            tgt = df[f"target_{h}"].get(cutoff)
+            # 回归器预测未来收益率（连续值），用于画出"模型预测路径"第三根线
+            Xtr_r, ytr_r = X.iloc[:-1].dropna(), yr.iloc[:-1].dropna()
+            Xtr_r, ytr_r = Xtr_r.align(ytr_r, join="inner", axis=0)
+            reg = RandomForestRegressor(n_estimators=120, max_depth=6,
+                                        min_samples_leaf=20, random_state=42, n_jobs=1)
+            reg.fit(Xtr_r, ytr_r)
+            pred_ret = float(reg.predict(Xte)[0])
+            entry[f"p{h}"] = round(p, 4)
+            entry[f"ret{h}"] = None if pd.isna(tgt) else round(float(tgt) * 100, 2)
+            entry[f"pred_ret{h}"] = round(pred_ret * 100, 2)
+        # 此后真实金价路径（最多 63 个交易日）
+        fut = df["gold"].loc[cutoff:].iloc[1:64]
+        entry["future"] = [[d.strftime("%Y-%m-%d"), round(float(v), 2)] for d, v in fut.items()]
+        replay.append(entry)
+    except Exception as e:
+        print(f"[warn] replay anchor {cutoff.date()} skipped: {e}", file=sys.stderr)
+    i += 21
     gc.collect()
 
 out = {"gold": gold_full, "replay": replay}

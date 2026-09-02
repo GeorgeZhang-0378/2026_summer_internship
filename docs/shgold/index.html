@@ -38,7 +38,7 @@ button{background:var(--gold);color:#fff;border:1px solid var(--gold);border-rad
 <div class="panel">
   <h3>历史回放：给定日期，只用之前数据预测未来（预测 vs 实际 两条线）</h3>
   <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
-    <label>选择日期：<input type="date" id="replay_date" style="padding:6px;border:1px solid var(--line);border-radius:6px"></label>
+    <label>选择日期：<input type="date" id="replay_date" min="2013-10-09" max="2026-09-01" style="padding:6px;border:1px solid var(--line);border-radius:6px"></label>
     <label>预测窗口：
       <select id="replay_horizon">
         <option value="21">21 日</option>

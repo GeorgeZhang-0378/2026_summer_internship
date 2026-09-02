@@ -1,7 +1,7 @@
 # 美国黄金方向预测原型 · 完整工作逻辑
 
 > 本文件把 `docs/predictor/` 下整条管线讲清楚：数据从哪来、做了哪些特征、模型怎么训练、产出什么、以及**它到底准不准**。
-> 模型快照口径：`as_of = 2026-08-31`，`n_samples = 3751`。
+> 模型快照口径：`as_of = 2026-09-02`，`n_samples = 3753`。
 > 线上页面：<https://georgezhang-0378.github.io/2026_summer_internship/predictor/>
 
 ---

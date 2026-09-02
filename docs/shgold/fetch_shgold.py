@@ -73,6 +73,7 @@ def fetch_yahoo_series(symbol, rng="5y"):
     ts = res["timestamp"]
     close = res["indicators"]["quote"][0]["close"]
     s = pd.Series(close, index=pd.to_datetime(ts, unit="s")).dropna()
+    s.index = s.index.normalize()  # 去掉 Yahoo 时间戳的时分秒，避免同日多行
     return s.sort_index()
 
 
@@ -217,18 +218,24 @@ def main():
     for c in macro.columns:
         df[c] = macro[c].reindex(alldates)
     df["premium"] = df["shgold"] - df["intl_gold"] * df["usdcny"] / 31.1035
-    df = df.dropna()
+    # FRED 的 USD/CNY(DEXCHUS) 与 美元指数(DTWEXBGS) 往往晚数日才发布；
+    # 前向填充后再剔除仍缺失的行，避免整段因子表被截断到滞后源的最后一天。
+    df = df.ffill().dropna()
+    # 统一索引为自然日（去掉任何来源的时分秒），并去除重复交易日
+    df.index = df.index.normalize()
+    df = df[~df.index.duplicated(keep="last")].sort_index()
 
     # 7) 与既有文件按日期合并，保留完整历史、用新数据覆盖重叠日
     out = os.path.join(DATA, "shgold_factors.csv")
     if os.path.exists(out):
-        old = pd.read_csv(out, parse_dates=["date"]).set_index("date")
+        old = pd.read_csv(out, index_col=0, parse_dates=True)
         merged = pd.concat([old, df]).sort_index()
         merged = merged[~merged.index.duplicated(keep="last")]  # 重叠日留新
         df = merged
+    df.index.name = "date"
 
     os.makedirs(DATA, exist_ok=True)
-    df.to_csv(out)
+    df.to_csv(out, index_label="date")
     print("写入", out, "rows =", len(df),
           "range", df.index.min().date(), "->", df.index.max().date())
 

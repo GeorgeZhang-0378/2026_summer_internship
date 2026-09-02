@@ -230,7 +230,7 @@ def main():
     print("[3/3] 构造特征与标签（20/60/252 窗口）…")
     df = build_features(gold, freds)
     out = os.path.join(DATA, "factors.csv")
-    df.to_csv(out)
+    df.to_csv(out, index_label="date")
     print(f"      写入 {out}  样本数={len(df)}  区间 {df.index[0].date()} ~ {df.index[-1].date()}")
     print("      上涨占比 21d=%.1f%%  63d=%.1f%%" % (
         100 * df["dir_21"].mean(), 100 * df["dir_63"].mean()))
