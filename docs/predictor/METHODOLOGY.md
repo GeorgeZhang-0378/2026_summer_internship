@@ -1,7 +1,7 @@
 # 美国黄金方向预测原型 · 完整工作逻辑
 
 > 本文件把 `docs/predictor/` 下整条管线讲清楚：数据从哪来、做了哪些特征、模型怎么训练、产出什么、以及**它到底准不准**。
-> 模型快照口径：`as_of = 2026-08-26`，`n_samples = 3748`。
+> 模型快照口径：`as_of = 2026-08-31`，`n_samples = 3751`。
 > 线上页面：<https://georgezhang-0378.github.io/2026_summer_internship/predictor/>
 
 ---
@@ -47,10 +47,10 @@ flowchart LR
 | 波动率 | `vix` | FRED `VIXCLS` | 避险/恐慌温度计 |
 | 美元 | `dxy` | FRED `DTWEXBGS` | 贸易加权美元指数（广义） |
 | 黄金波动 | `gvz` | FRED `GVZCLS` | CBOE 黄金隐含波动率 |
-| 金价（目标） | `gold` | Twelvedata（需 `TD_KEY`）或本地 `data/gold_history.csv` | **回归目标**：未来 21/63 日收益符号 |
+| 金价（目标） | `gold` | **免 key 兜底链**：`TD_KEY`→Yahoo `GC=F`→Stooq `xauusd`→本地 `gold_history.csv` | **回归目标**：未来 21/63 日收益符号 |
 | 央行购金 | `cb_net` | WGC 年报整理的 `cb_gold.csv` | 年度净购金吨数，结构性利好 |
 
-> FRED 走 `fredgraph.csv` 免 API key 直接拉；金价若没配 `TD_KEY` 则回退到已提交的 `gold_history.csv`（此时金价不会随刷新更新，需手动更新该文件或配 `TD_KEY` 密钥）。
+> FRED 走 `fredgraph.csv` 免 API key 直接拉。金价抓取（`fetch_gold()`）为**免 key 兜底链**：配置了仓库密钥 `TD_KEY` 则优先走 Twelvedata `XAU/USD`；否则依次尝试 **Yahoo `GC=F`**、**Stooq `xauusd`**；都失败才读本地 `gold_history.csv`。抓到的新价用 `combine_first` **按日期合并回 `gold_history.csv`，只追加新交易日、不截断 2011 年起的历史**。GitHub Actions 服务器能直连 Yahoo/Stooq，因此**无需任何密钥即可每日自动更新到最新交易日**；`TD_KEY` 只是把 Twelvedata 升为第一优先源（更稳，免受限频/数据中心 IP 封锁）。
 
 ---
 
@@ -87,6 +87,37 @@ flowchart LR
 | `cb_net` | — | 央行年净购金 |
 
 `feasible_features()` 会根据当前可用历史长度动态挑选特征（样本不够 252 日时自动去掉长窗口特征），避免早期样本全为 NaN。
+
+### 3.1 因子公式（以动量为代表）
+
+记 `g_t` 为第 t 个交易日的收盘价，日收益率 `r_t = g_t / g_{t-1} − 1`。`fetch_factors.build_features` 里的核心实现：
+
+```python
+# 金价技术面（动量 = 价格比减 1；波动率 = 年化标准差）
+gold_ret_20  = g.pct_change(20)            # = g_t / g_{t-20} − 1      ← 20日动量
+gold_ret_60  = g.pct_change(60)            # = g_t / g_{t-60} − 1      ← 60日动量
+gold_ret_252 = g.pct_change(252)           # = g_t / g_{t-252} − 1     ← 年化动量
+gold_vol_20  = r.rolling(20).std() * sqrt(252)   # 20日年化波动率
+gold_vol_60  = r.rolling(60).std() * sqrt(252)   # 60日年化波动率
+
+# 宏观/市场面（多为水平值或「变化」）
+real_rate       = DFII10                      # 10Y TIPS 实际利率（水平）
+real_rate_chg_60= real_rate.diff(60)          # 实际利率 60 日变化
+dxy_chg_20      = dxy.pct_change(20)          # 美元 20 日变化率
+dxy_chg_252     = dxy.pct_change(252)         # 美元 1 年趋势
+vix_chg_20      = vix.diff(20)                # VIX 20 日变化
+spx_ret_20      = spx.pct_change(20)          # 美股 20 日动量
+```
+
+**标签（未来 h 日收益符号，无前视泄漏）**：
+
+```python
+target_21 = g.shift(-21) / g - 1      # = g_{t+21} / g_t − 1
+dir_21    = (target_21 > 0)           # 1=涨, 0=跌
+# 63 日窗口同理用 shift(-63)
+```
+
+> 要点：动量因子就是「过去 N 日价格变化率」，`pct_change(N)` 等价于 `g_t / g_{t-N} − 1`；波动率用滚动标准差年化（`×√252`）。所有特征只用到「截至当天」的数据，标签用 `shift(-h)` 看未来，因此训练集不存在前视泄漏。
 
 ---
 
@@ -149,6 +180,21 @@ RandomForestClassifier(
 3. **因子重要性**：条形图。
 4. **回测**：策略净值 vs 买入持有。
 5. **上传即分析**：用户上传自己的 Excel/CSV，只做技术面描述（MA/动量/回撤/波动率/regime），**不预测**（上传自训练模型已被移除，因其不如盲赌）。
+
+### 7.1 线是「提前算好上传」还是「当场画」？
+
+**结论：数字是离线（Python）算好、存成静态 JSON 上传的；线本身是浏览器每次打开时用 ECharts 实时绘制的。即「预计算端点 + 实时绘制」。**
+
+- Python 离线算出 `signals.json / replay.json / backtest.json` 并 `git push` 到仓库；GitHub Pages 托管这些静态文件。
+- 网页打开时，纯前端 `fetch(..., {cache:'no-store'})` 读取这些 JSON（`cache:'no-store'` 只绕过浏览器缓存，**不联网拉新数据**），再交给 ECharts 画图。
+
+**回放页「预测 vs 实际」两条线怎么来的：**
+
+- **实际线（金实线）**：`replay.json` 中的 `gold`（完整历史价）+ 每个回放锚点的 `future`（该日之后的真实价）。前端按所选日期拼接成一条实线。
+- **预测线（蓝虚线）**：每条回放点只存**两个端点**——预测日价格 `startP`，以及由预测收益率 `pred_ret` 算出的终点 `startP × (1 + pred_ret/100)`。前端在这两个端点间**画一条蓝色虚直线**，并钉上「+x%」标记。
+- 因此「预测路径」是一段**直虚线**（模型只预测 21/63 天窗口的涨跌方向与幅度，不预测逐日路径）。超出真实数据之后（如 8-31 以后），实际线断开、只剩预测虚线，信息栏会提示「真实金价截至 X，其后只有模型预测路径」。
+
+回测页、因子重要性、信号卡同理，均读 JSON 当场渲染。上传 Excel 自分析完全在浏览器本地算 MA/动量/回撤/波动率，不上传服务器、也不碰模型。
 
 ---
 

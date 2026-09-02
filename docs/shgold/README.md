@@ -25,12 +25,13 @@
 
 | 数据 | 来源 | 说明 |
 |---|---|---|
-| 沪金 AU0 日线 | 新浪 `InnerFuturesNewService.getDailyKLine?symbol=AU0` | 上海期金主力连续，免 key |
-| 人民币 USD/CNY | FRED `DEXCHUS` | 沪金关键变量（贬值→沪金涨） |
-| 国际金价 | 复用 `../predictor/data/gold_history.csv` | 主驱动 |
-| 全球宏观 | FRED `DFII10 / NASDAQCOM / VIXCLS / DTWEXBGS / GVZCLS` | 同美国模型 |
+| 沪金 AU0 日线 | 新浪 `InnerFuturesNewService.getDailyKLine?symbol=AU0` | 上海期金主力连续，免 key；**若抓取失败则用恒等式推导补齐最新交易日**：`沪金 ≈ 国际金价 × USDCNY ÷ 31.1035 + 上一已知溢价` |
+| 人民币 USD/CNY | **免 key 兜底链**：Yahoo `USDCNY=X` → Stooq → FRED `DEXCHUS` | 沪金关键变量（贬值→沪金涨） |
+| 国际金价 | 复用 `../predictor/data/gold_history.csv`，缺失时 `TD_KEY`→Yahoo→Stooq 兜底 | 主驱动 |
+| 美元指数 | **免 key 兜底链**：Yahoo `DX-Y.NYB` → Stooq → FRED `DTWEXBGS` | 沪金关键变量 |
+| 全球宏观 | FRED `DFII10 / NASDAQCOM / VIXCLS / GVZCLS` | 同美国模型 |
 
-全部免 API key，可直接抓取 → 自动刷新无需任何密钥。
+全部免 API key：Sina 与 FRED 长期免 key，USD/CNY 与美元指数在 CI 中经 Yahoo/Stooq 兜底链直连 → **自动刷新无需任何密钥**（`TD_KEY` 仅作为可选升级，用于国际金价兜底）。`fetch_shgold.py` 还会把新数据按日期 `combine_first` 合并回 `shgold_factors.csv`，保留完整历史。
 
 ### 沪金专属因子（围绕定价恒等式）
 
@@ -39,6 +40,29 @@
 - `intl_ret_20 / intl_ret_60 / intl_ret_252`：国际金价驱动
 - `premium_chg_60`：国内溢价变化（均值回复）
 - 全球宏观：`real_rate / real_rate_chg_60 / dxy_chg_20 / dxy_chg_252 / vix / vix_chg_20 / gvz / spx_ret_20/60/252`
+
+#### 因子公式（动量为例）
+
+记 `s_t` 为第 t 个交易日的沪金收盘价，`r_t = s_t / s_{t-1} − 1`。`train_shgold.build_features` 中的核心实现（沪金动量用「N 个日收益相加」，小波动下等价于 `s_t/s_{t-N} − 1`）：
+
+```python
+r = shgold.pct_change()                     # 日收益率
+shgold_ret_20 = r.rolling(20).sum()         # ≈ g_t / g_{t-20} − 1   ← 20日动量
+shgold_vol_20 = r.rolling(20).std() * sqrt(252)   # 20日年化波动率
+intl_ret_20   = intl_gold.pct_change().rolling(20).sum()  # 国际金价动量（主驱动）
+usdcny_chg_20 = usdcny.pct_change(20)       # 人民币 20 日变化
+premium_chg_60= premium.pct_change(60)      # 国内溢价 60 日变化（均值回复）
+```
+
+**标签（未来 h 日收益符号，无前视泄漏）**：
+
+```python
+target_21 = s.pct_change(21).shift(-21)     # = s_{t+21} / s_t − 1
+dir_21    = (target_21 > 0)                 # 1=涨, 0=跌
+# 63 日窗口同理用 shift(-63)
+```
+
+> 与美国模型差异：沪金动量写成「滚动 N 日收益求和」而非「价格比减 1」，二者在日波动较小时几乎等价；因子选择围绕定价恒等式「沪金 ≈ 国际金价 × USD/CNY + 国内溢价」展开，因此比美国模型多了 `usdcny_chg`、`intl_ret`、`premium_chg` 这几组汇率/国际金价/溢价因子。
 
 ---
 
@@ -55,6 +79,13 @@
 3. **因子重要性**：条形图。
 4. **回测**：策略净值 vs 买入持有。
 5. **上传即分析**：上传自己的 Excel/CSV，做技术面描述（可滚轮缩放区间），不预测。
+
+### 线是「提前算好上传」还是「当场画」？
+
+与（美国黄金）完全一致的「**预计算端点 + 实时绘制**」模式：
+
+- Python 离线算出 `signals_shgold.json / replay_shgold.json / backtest_shgold.json` 并 `git push`；网页打开时纯前端 `fetch(..., {cache:'no-store'})` 读取后交给 ECharts 绘制（`cache:'no-store'` 只绕浏览器缓存，**不联网拉新数据**）。
+- **回放「预测 vs 实际」两条线**：实际线 = `replay_shgold.json` 的 `gold`（历史价）+ 各锚点的 `future`（真实后续价）拼接而成的金实线；预测线 = 每个回放点只存的两个端点（预测日价 `startP` 与 `startP×(1+pred_ret/100)`）之间画的蓝色虚直线。超出真实数据后只剩预测虚线，信息栏会提示真实金价截至日。
 
 ---
 
