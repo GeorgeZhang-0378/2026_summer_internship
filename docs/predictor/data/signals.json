@@ -28,7 +28,7 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1317
+      "imp": 0.1313
     },
     {
       "name": "标普60日收益",
@@ -40,27 +40,27 @@
     },
     {
       "name": "央行年净购金(吨)",
-      "imp": 0.0859
+      "imp": 0.086
     },
     {
       "name": "标普1年收益",
-      "imp": 0.0766
+      "imp": 0.0767
     },
     {
       "name": "黄金隐含波动率(GVZ)",
-      "imp": 0.0722
+      "imp": 0.0719
     },
     {
       "name": "金价60日波动率",
-      "imp": 0.0637
+      "imp": 0.0644
     },
     {
       "name": "金价年化动量(1年)",
-      "imp": 0.0599
+      "imp": 0.06
     },
     {
       "name": "金价60日收益",
-      "imp": 0.0588
+      "imp": 0.0587
     },
     {
       "name": "实际利率60日变化",
@@ -68,19 +68,19 @@
     },
     {
       "name": "金价20日波动率",
-      "imp": 0.0502
+      "imp": 0.05
     },
     {
       "name": "金价20日收益",
-      "imp": 0.0455
+      "imp": 0.0456
     },
     {
       "name": "标普20日收益",
-      "imp": 0.0436
+      "imp": 0.0437
     },
     {
       "name": "VIX波动率",
-      "imp": 0.0349
+      "imp": 0.0347
     },
     {
       "name": "美元20日变化",
@@ -88,13 +88,13 @@
     },
     {
       "name": "VIX 20日变化",
-      "imp": 0.0201
+      "imp": 0.02
     }
   ],
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": 0.015,
+      "value": 0.0095,
       "score": 2.2,
       "direction": "bullish"
     },
@@ -124,18 +124,18 @@
     },
     {
       "name": "标普(1年)",
-      "value": 0.1111,
-      "score": 5.7,
+      "value": 0.1218,
+      "score": 5.6,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.353,
-  "latest_P_up_63d": 0.1497,
-  "latest_gold": 4390.0,
-  "latest_pred_ret_21d": 0.3,
+  "latest_P_up_21d": 0.3557,
+  "latest_P_up_63d": 0.1508,
+  "latest_gold": 4366.2,
+  "latest_pred_ret_21d": 0.28,
   "latest_pred_ret_21d_band": 4.34,
-  "latest_target_price_21d": 4403.13,
-  "latest_pred_ret_63d": -2.87,
+  "latest_target_price_21d": 4378.39,
+  "latest_pred_ret_63d": -2.91,
   "latest_pred_ret_63d_band": 7.75,
-  "latest_target_price_63d": 4264.06
+  "latest_target_price_63d": 4239.25
 }
