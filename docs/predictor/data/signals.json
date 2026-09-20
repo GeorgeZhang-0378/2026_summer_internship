@@ -28,7 +28,7 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1298
+      "imp": 0.1296
     },
     {
       "name": "美元1年趋势",
@@ -36,11 +36,11 @@
     },
     {
       "name": "标普60日收益",
-      "imp": 0.0872
+      "imp": 0.0873
     },
     {
       "name": "央行年净购金(吨)",
-      "imp": 0.0872
+      "imp": 0.0873
     },
     {
       "name": "标普1年收益",
@@ -48,27 +48,27 @@
     },
     {
       "name": "黄金隐含波动率(GVZ)",
-      "imp": 0.0688
+      "imp": 0.0687
     },
     {
       "name": "金价60日波动率",
-      "imp": 0.0629
-    },
-    {
-      "name": "金价60日收益",
-      "imp": 0.0596
+      "imp": 0.0632
     },
     {
       "name": "金价年化动量(1年)",
-      "imp": 0.0595
+      "imp": 0.0594
+    },
+    {
+      "name": "金价60日收益",
+      "imp": 0.0592
     },
     {
       "name": "实际利率60日变化",
-      "imp": 0.0534
+      "imp": 0.0533
     },
     {
       "name": "金价20日波动率",
-      "imp": 0.0487
+      "imp": 0.0485
     },
     {
       "name": "标普20日收益",
@@ -76,7 +76,7 @@
     },
     {
       "name": "金价20日收益",
-      "imp": 0.0435
+      "imp": 0.0437
     },
     {
       "name": "VIX波动率",
@@ -88,13 +88,13 @@
     },
     {
       "name": "VIX 20日变化",
-      "imp": 0.0199
+      "imp": 0.0201
     }
   ],
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": 0.0197,
+      "value": 0.0218,
       "score": 2.3,
       "direction": "bullish"
     },
@@ -124,18 +124,18 @@
     },
     {
       "name": "标普(1年)",
-      "value": 0.137,
+      "value": 0.1415,
       "score": 5.4,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3748,
-  "latest_P_up_63d": 0.2062,
-  "latest_gold": 4415.9,
-  "latest_pred_ret_21d": 2.13,
+  "latest_P_up_21d": 0.3776,
+  "latest_P_up_63d": 0.2083,
+  "latest_gold": 4424.9,
+  "latest_pred_ret_21d": 2.15,
   "latest_pred_ret_21d_band": 4.36,
-  "latest_target_price_21d": 4510.04,
+  "latest_target_price_21d": 4520.02,
   "latest_pred_ret_63d": -2.44,
   "latest_pred_ret_63d_band": 7.76,
-  "latest_target_price_63d": 4307.94
+  "latest_target_price_63d": 4316.88
 }
