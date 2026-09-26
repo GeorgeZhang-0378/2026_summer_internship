@@ -94,14 +94,14 @@
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.0305,
+      "value": -0.0314,
       "score": 2.0,
       "direction": "bullish"
     },
     {
       "name": "实际利率",
-      "value": 2.76,
-      "score": 0.7,
+      "value": 2.85,
+      "score": 0.5,
       "direction": "bearish"
     },
     {
@@ -124,18 +124,18 @@
     },
     {
       "name": "标普(1年)",
-      "value": 0.1472,
+      "value": 0.1473,
       "score": 5.3,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3978,
-  "latest_P_up_63d": 0.2662,
-  "latest_gold": 4324.6,
-  "latest_pred_ret_21d": 3.86,
+  "latest_P_up_21d": 0.3977,
+  "latest_P_up_63d": 0.2674,
+  "latest_gold": 4320.5,
+  "latest_pred_ret_21d": 3.77,
   "latest_pred_ret_21d_band": 4.37,
-  "latest_target_price_21d": 4491.58,
+  "latest_target_price_21d": 4483.36,
   "latest_pred_ret_63d": -0.02,
   "latest_pred_ret_63d_band": 7.76,
-  "latest_target_price_63d": 4323.85
+  "latest_target_price_63d": 4319.73
 }
