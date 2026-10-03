@@ -28,11 +28,11 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1244
+      "imp": 0.1246
     },
     {
       "name": "央行年净购金(吨)",
-      "imp": 0.0927
+      "imp": 0.0926
     },
     {
       "name": "美元1年趋势",
@@ -44,7 +44,7 @@
     },
     {
       "name": "标普1年收益",
-      "imp": 0.0794
+      "imp": 0.0793
     },
     {
       "name": "金价60日波动率",
@@ -52,15 +52,15 @@
     },
     {
       "name": "黄金隐含波动率(GVZ)",
-      "imp": 0.066
+      "imp": 0.0659
     },
     {
       "name": "金价60日收益",
-      "imp": 0.0632
+      "imp": 0.0631
     },
     {
       "name": "金价年化动量(1年)",
-      "imp": 0.0629
+      "imp": 0.063
     },
     {
       "name": "实际利率60日变化",
@@ -94,14 +94,14 @@
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.0908,
+      "value": -0.0928,
       "score": 1.7,
       "direction": "bullish"
     },
     {
       "name": "实际利率",
-      "value": 2.93,
-      "score": 0.5,
+      "value": 2.88,
+      "score": 0.6,
       "direction": "bearish"
     },
     {
@@ -112,30 +112,30 @@
     },
     {
       "name": "波动率/避险",
-      "value": 16.34,
-      "score": 3.8,
+      "value": 16.39,
+      "score": 3.9,
       "direction": "bullish"
     },
     {
       "name": "黄金隐含波动率",
-      "value": 23.74,
+      "value": 23.32,
       "score": 4.3,
       "direction": "bullish"
     },
     {
       "name": "标普(1年)",
-      "value": 0.1329,
+      "value": 0.1334,
       "score": 5.4,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3501,
-  "latest_P_up_63d": 0.3069,
-  "latest_gold": 4181.4,
-  "latest_pred_ret_21d": 2.75,
+  "latest_P_up_21d": 0.3544,
+  "latest_P_up_63d": 0.3092,
+  "latest_gold": 4172.1,
+  "latest_pred_ret_21d": 2.78,
   "latest_pred_ret_21d_band": 4.37,
-  "latest_target_price_21d": 4296.44,
-  "latest_pred_ret_63d": 0.4,
+  "latest_target_price_21d": 4287.96,
+  "latest_pred_ret_63d": 0.43,
   "latest_pred_ret_63d_band": 7.75,
-  "latest_target_price_63d": 4198.21
+  "latest_target_price_63d": 4190.2
 }
