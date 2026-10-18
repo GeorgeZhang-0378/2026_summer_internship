@@ -94,7 +94,7 @@
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.1592,
+      "value": -0.1604,
       "score": 1.5,
       "direction": "bullish"
     },
@@ -129,13 +129,13 @@
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3059,
+  "latest_P_up_21d": 0.3074,
   "latest_P_up_63d": 0.3557,
-  "latest_gold": 4186.7,
+  "latest_gold": 4181.1,
   "latest_pred_ret_21d": 1.57,
   "latest_pred_ret_21d_band": 4.38,
-  "latest_target_price_21d": 4252.32,
+  "latest_target_price_21d": 4246.66,
   "latest_pred_ret_63d": -0.09,
   "latest_pred_ret_63d_band": 7.74,
-  "latest_target_price_63d": 4182.79
+  "latest_target_price_63d": 4177.17
 }
