@@ -1,7 +1,7 @@
 {
-  "as_of": "2026-10-20",
-  "n_samples": 3787,
-  "wgc_21d_accuracy": 0.4916,
+  "as_of": "2026-10-21",
+  "n_samples": 3788,
+  "wgc_21d_accuracy": 0.4918,
   "rf_21d_accuracy": 0.7179,
   "rf_21d_confusion": [
     [
@@ -28,59 +28,59 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1208
+      "imp": 0.1228
     },
     {
       "name": "央行年净购金(吨)",
-      "imp": 0.0963
+      "imp": 0.0959
     },
     {
       "name": "美元1年趋势",
-      "imp": 0.0914
+      "imp": 0.09
     },
     {
       "name": "标普60日收益",
-      "imp": 0.0824
+      "imp": 0.0837
     },
     {
       "name": "标普1年收益",
-      "imp": 0.0788
+      "imp": 0.0784
     },
     {
       "name": "金价60日波动率",
-      "imp": 0.0686
+      "imp": 0.0697
     },
     {
       "name": "黄金隐含波动率(GVZ)",
-      "imp": 0.065
+      "imp": 0.0672
     },
     {
       "name": "金价年化动量(1年)",
-      "imp": 0.0637
+      "imp": 0.064
     },
     {
       "name": "金价60日收益",
-      "imp": 0.0609
+      "imp": 0.0592
     },
     {
       "name": "实际利率60日变化",
-      "imp": 0.0513
+      "imp": 0.0516
     },
     {
       "name": "标普20日收益",
-      "imp": 0.0488
+      "imp": 0.047
     },
     {
       "name": "金价20日波动率",
-      "imp": 0.0442
+      "imp": 0.0452
     },
     {
       "name": "金价20日收益",
-      "imp": 0.041
+      "imp": 0.0404
     },
     {
       "name": "VIX波动率",
-      "imp": 0.0372
+      "imp": 0.0364
     },
     {
       "name": "美元20日变化",
@@ -88,54 +88,54 @@
     },
     {
       "name": "VIX 20日变化",
-      "imp": 0.0197
+      "imp": 0.0188
     }
   ],
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.1687,
-      "score": 1.5,
+      "value": -0.1874,
+      "score": 1.4,
       "direction": "bullish"
     },
     {
       "name": "实际利率",
-      "value": 2.74,
-      "score": 1.4,
+      "value": 2.8,
+      "score": 1.2,
       "direction": "bearish"
     },
     {
       "name": "美元趋势(1年)",
-      "value": 0.0211,
-      "score": 0.9,
+      "value": 0.0284,
+      "score": 0.6,
       "direction": "bearish"
     },
     {
       "name": "波动率/避险",
-      "value": 19.99,
-      "score": 5.8,
+      "value": 18.44,
+      "score": 5.0,
       "direction": "bullish"
     },
     {
       "name": "黄金隐含波动率",
-      "value": 22.58,
+      "value": 22.23,
       "score": 4.2,
       "direction": "bullish"
     },
     {
       "name": "标普(1年)",
-      "value": 0.1367,
-      "score": 5.3,
+      "value": 0.1199,
+      "score": 5.6,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3467,
-  "latest_P_up_63d": 0.3859,
-  "latest_gold": 4141.7,
-  "latest_pred_ret_21d": 1.71,
+  "latest_P_up_21d": 0.3894,
+  "latest_P_up_63d": 0.4936,
+  "latest_gold": 4130.0,
+  "latest_pred_ret_21d": 1.44,
   "latest_pred_ret_21d_band": 4.38,
-  "latest_target_price_21d": 4212.32,
-  "latest_pred_ret_63d": 2.63,
+  "latest_target_price_21d": 4189.41,
+  "latest_pred_ret_63d": 6.36,
   "latest_pred_ret_63d_band": 7.74,
-  "latest_target_price_63d": 4250.55
+  "latest_target_price_63d": 4392.5
 }
