@@ -1,7 +1,7 @@
 {
-  "as_of": "2026-10-23",
-  "n_samples": 3790,
-  "wgc_21d_accuracy": 0.4921,
+  "as_of": "2026-10-26",
+  "n_samples": 3791,
+  "wgc_21d_accuracy": 0.4923,
   "rf_21d_accuracy": 0.7179,
   "rf_21d_confusion": [
     [
@@ -28,27 +28,27 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1231
+      "imp": 0.1224
     },
     {
       "name": "央行年净购金(吨)",
-      "imp": 0.0957
+      "imp": 0.0967
     },
     {
       "name": "美元1年趋势",
-      "imp": 0.0906
+      "imp": 0.0914
     },
     {
       "name": "标普60日收益",
-      "imp": 0.0851
+      "imp": 0.0852
     },
     {
       "name": "标普1年收益",
-      "imp": 0.0779
+      "imp": 0.0781
     },
     {
       "name": "金价60日波动率",
-      "imp": 0.071
+      "imp": 0.0698
     },
     {
       "name": "黄金隐含波动率(GVZ)",
@@ -56,23 +56,23 @@
     },
     {
       "name": "金价年化动量(1年)",
-      "imp": 0.0632
+      "imp": 0.0625
     },
     {
       "name": "金价60日收益",
-      "imp": 0.0587
+      "imp": 0.0583
     },
     {
       "name": "实际利率60日变化",
-      "imp": 0.0532
+      "imp": 0.0527
     },
     {
       "name": "标普20日收益",
-      "imp": 0.0473
+      "imp": 0.0478
     },
     {
       "name": "金价20日波动率",
-      "imp": 0.0434
+      "imp": 0.0433
     },
     {
       "name": "金价20日收益",
@@ -80,21 +80,21 @@
     },
     {
       "name": "VIX波动率",
-      "imp": 0.0365
+      "imp": 0.0363
     },
     {
       "name": "美元20日变化",
-      "imp": 0.0297
+      "imp": 0.0303
     },
     {
       "name": "VIX 20日变化",
-      "imp": 0.0185
+      "imp": 0.019
     }
   ],
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.2443,
+      "value": -0.2479,
       "score": 1.2,
       "direction": "bullish"
     },
@@ -106,7 +106,7 @@
     },
     {
       "name": "美元趋势(1年)",
-      "value": 0.0331,
+      "value": 0.0338,
       "score": 0.5,
       "direction": "bearish"
     },
@@ -124,18 +124,18 @@
     },
     {
       "name": "标普(1年)",
-      "value": 0.0879,
-      "score": 6.1,
+      "value": 0.0959,
+      "score": 6.0,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.5359,
-  "latest_P_up_63d": 0.6245,
-  "latest_gold": 4007.9,
-  "latest_pred_ret_21d": 3.4,
+  "latest_P_up_21d": 0.4642,
+  "latest_P_up_63d": 0.6011,
+  "latest_gold": 4000.0,
+  "latest_pred_ret_21d": 2.63,
   "latest_pred_ret_21d_band": 4.38,
-  "latest_target_price_21d": 4144.21,
-  "latest_pred_ret_63d": 7.41,
+  "latest_target_price_21d": 4105.27,
+  "latest_pred_ret_63d": 7.4,
   "latest_pred_ret_63d_band": 7.74,
-  "latest_target_price_63d": 4304.72
+  "latest_target_price_63d": 4296.08
 }
