@@ -28,7 +28,7 @@
   "feature_importance": [
     {
       "name": "实际利率(10Y TIPS)",
-      "imp": 0.1225
+      "imp": 0.1232
     },
     {
       "name": "央行年净购金(吨)",
@@ -36,72 +36,72 @@
     },
     {
       "name": "美元1年趋势",
-      "imp": 0.0913
+      "imp": 0.0912
     },
     {
       "name": "标普60日收益",
-      "imp": 0.0843
+      "imp": 0.0825
     },
     {
       "name": "标普1年收益",
-      "imp": 0.0786
+      "imp": 0.0776
     },
     {
       "name": "金价60日波动率",
-      "imp": 0.0718
+      "imp": 0.0723
     },
     {
       "name": "黄金隐含波动率(GVZ)",
-      "imp": 0.064
-    },
-    {
-      "name": "金价年化动量(1年)",
-      "imp": 0.0623
+      "imp": 0.0648
     },
     {
       "name": "金价60日收益",
-      "imp": 0.0611
+      "imp": 0.0625
+    },
+    {
+      "name": "金价年化动量(1年)",
+      "imp": 0.0608
     },
     {
       "name": "实际利率60日变化",
-      "imp": 0.0544
+      "imp": 0.0548
     },
     {
       "name": "金价20日波动率",
-      "imp": 0.044
+      "imp": 0.0434
     },
     {
       "name": "金价20日收益",
-      "imp": 0.0417
+      "imp": 0.0422
     },
     {
       "name": "标普20日收益",
-      "imp": 0.0416
+      "imp": 0.0422
     },
     {
       "name": "VIX波动率",
-      "imp": 0.0363
+      "imp": 0.0359
     },
     {
       "name": "美元20日变化",
-      "imp": 0.0298
+      "imp": 0.0294
     },
     {
       "name": "VIX 20日变化",
-      "imp": 0.0184
+      "imp": 0.0193
     }
   ],
   "factor_scores": [
     {
       "name": "价格动量(1年)",
-      "value": -0.1809,
+      "value": -0.1774,
       "score": 1.7,
       "direction": "bullish"
     },
     {
       "name": "实际利率",
-      "value": 2.64,
-      "score": 2.1,
+      "value": 2.6,
+      "score": 2.3,
       "direction": "bearish"
     },
     {
@@ -112,30 +112,30 @@
     },
     {
       "name": "波动率/避险",
-      "value": 16.61,
-      "score": 4.0,
+      "value": 28.18,
+      "score": 8.4,
       "direction": "bullish"
     },
     {
       "name": "黄金隐含波动率",
-      "value": 24.11,
-      "score": 4.4,
+      "value": 25.83,
+      "score": 4.7,
       "direction": "bullish"
     },
     {
       "name": "标普(1年)",
-      "value": 0.1175,
-      "score": 5.6,
+      "value": 0.0557,
+      "score": 6.5,
       "direction": "bearish"
     }
   ],
-  "latest_P_up_21d": 0.3635,
-  "latest_P_up_63d": 0.4571,
-  "latest_gold": 4061.8,
-  "latest_pred_ret_21d": 2.52,
+  "latest_P_up_21d": 0.4401,
+  "latest_P_up_63d": 0.4398,
+  "latest_gold": 4079.5,
+  "latest_pred_ret_21d": 4.01,
   "latest_pred_ret_21d_band": 4.38,
-  "latest_target_price_21d": 4164.03,
-  "latest_pred_ret_63d": 6.42,
+  "latest_target_price_21d": 4243.0,
+  "latest_pred_ret_63d": 6.45,
   "latest_pred_ret_63d_band": 7.75,
-  "latest_target_price_63d": 4322.4
+  "latest_target_price_63d": 4342.71
 }
